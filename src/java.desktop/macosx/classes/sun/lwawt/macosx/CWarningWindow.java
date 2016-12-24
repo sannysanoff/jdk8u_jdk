@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ package sun.lwawt.macosx;
 
 import sun.awt.AWTAccessor;
 import sun.awt.IconInfo;
+import sun.awt.SunToolkit;
 import sun.java2d.SunGraphics2D;
 import sun.java2d.SurfaceData;
 import sun.java2d.opengl.CGLLayer;
@@ -38,15 +39,19 @@ import java.awt.*;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
 import java.lang.ref.WeakReference;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 public final class CWarningWindow extends CPlatformWindow
         implements SecurityWarningWindow, PlatformEventNotifier {
 
-    private static class Lock {}
+    private static class Lock {};
     private final Lock lock = new Lock();
 
-    private static final int SHOWING_DELAY = 300;
-    private static final int HIDING_DELAY = 2000;
+    private final static int SHOWING_DELAY = 300;
+    private final static int HIDING_DELAY = 2000;
 
     private Rectangle bounds = new Rectangle();
     private final WeakReference<LWWindowPeer> ownerPeer;
@@ -90,7 +95,7 @@ public final class CWarningWindow extends CPlatformWindow
     public CWarningWindow(final Window _ownerWindow, final LWWindowPeer _ownerPeer) {
         super();
 
-        this.ownerPeer = new WeakReference<>(_ownerPeer);
+        this.ownerPeer = new WeakReference<LWWindowPeer>(_ownerPeer);
         this.ownerWindow = _ownerWindow;
 
         initialize(null, null, _ownerPeer.getPlatformWindow());
@@ -115,8 +120,16 @@ public final class CWarningWindow extends CPlatformWindow
     }
 
     public void setVisible(boolean visible, boolean doSchedule) {
-        synchronized (taskLock) {
-            cancelTasks();
+        synchronized (scheduler) {
+            if (showingTaskHandle != null) {
+                showingTaskHandle.cancel(false);
+                showingTaskHandle = null;
+            }
+
+            if (hidingTaskHandle != null) {
+                hidingTaskHandle.cancel(false);
+                hidingTaskHandle = null;
+            }
 
             if (visible) {
                 if (isVisible()) {
@@ -125,18 +138,20 @@ public final class CWarningWindow extends CPlatformWindow
                     currentIcon = 2;
                 }
 
-                showHideTask = new ShowingTask();
-                LWCToolkit.performOnMainThreadAfterDelay(showHideTask, 50);
+                showingTaskHandle = scheduler.schedule(showingTask, 50,
+                        TimeUnit.MILLISECONDS);
+
             } else {
                 if (!isVisible()) {
                     return;
                 }
 
-                showHideTask = new HidingTask();
                 if (doSchedule) {
-                    LWCToolkit.performOnMainThreadAfterDelay(showHideTask, HIDING_DELAY);
+                    hidingTaskHandle = scheduler.schedule(hidingTask, HIDING_DELAY,
+                            TimeUnit.MILLISECONDS);
                 } else {
-                    LWCToolkit.performOnMainThreadAfterDelay(showHideTask, 50);
+                    hidingTaskHandle = scheduler.schedule(hidingTask, 50,
+                            TimeUnit.MILLISECONDS);
                 }
             }
         }
@@ -173,7 +188,7 @@ public final class CWarningWindow extends CPlatformWindow
 
     @Override
     public void notifyMouseEvent(int id, long when, int button, int x, int y,
-                                 int absX, int absY, int modifiers,
+                                 int screenX, int screenY, int modifiers,
                                  int clickCount, boolean popupTrigger,
                                  byte[] bdata) {
         LWWindowPeer peer = ownerPeer.get();
@@ -204,41 +219,47 @@ public final class CWarningWindow extends CPlatformWindow
     @Override
     public void setVisible(boolean visible) {
         synchronized (lock) {
-            execute(ptr -> {
-                // Actually show or hide the window
-                if (visible) {
-                    CWrapper.NSWindow.orderFront(ptr);
-                } else {
-                    CWrapper.NSWindow.orderOut(ptr);
+            final long nsWindowPtr = getNSWindowPtr();
+
+            // Process parent-child relationship when hiding
+            if (!visible) {
+                // Unparent myself
+                if (owner != null && owner.isVisible()) {
+                    CWrapper.NSWindow.removeChildWindow(
+                            owner.getNSWindowPtr(), nsWindowPtr);
                 }
-            });
+            }
+
+            // Actually show or hide the window
+            if (visible) {
+                CWrapper.NSWindow.orderFront(nsWindowPtr);
+            } else {
+                CWrapper.NSWindow.orderOut(nsWindowPtr);
+            }
 
             this.visible = visible;
 
             // Manage parent-child relationship when showing
             if (visible) {
-                // Order myself above my parent
+                // Add myself as a child
                 if (owner != null && owner.isVisible()) {
-                    owner.execute(ownerPtr -> {
-                        execute(ptr -> {
-                            CWrapper.NSWindow.orderWindow(ptr,
-                                                          CWrapper.NSWindow.NSWindowAbove,
-                                                          ownerPtr);
-                        });
-                    });
+                    CWrapper.NSWindow.addChildWindow(owner.getNSWindowPtr(),
+                            nsWindowPtr, CWrapper.NSWindow.NSWindowAbove);
 
                     // do not allow security warning to be obscured by other windows
-                    applyWindowLevel(ownerWindow);
+                    if (ownerWindow.isAlwaysOnTop()) {
+                        CWrapper.NSWindow.setLevel(nsWindowPtr,
+                                CWrapper.NSWindow.NSFloatingWindowLevel);
+                    }
                 }
             }
         }
     }
 
     @Override
-    public void notifyMouseWheelEvent(long when, int x, int y, int absX,
-                                      int absY, int modifiers, int scrollType,
-                                      int scrollAmount, int wheelRotation,
-                                      double preciseWheelRotation,
+    public void notifyMouseWheelEvent(long when, int x, int y, int modifiers,
+                                      int scrollType, int scrollAmount,
+                                      int wheelRotation, double preciseWheelRotation, double scrollingDelta,
                                       byte[] bdata) {
     }
 
@@ -303,25 +324,6 @@ public final class CWarningWindow extends CPlatformWindow
         };
     }
 
-    @Override
-    public void dispose() {
-        cancelTasks();
-        SurfaceData surfaceData = contentView.getSurfaceData();
-        if (surfaceData != null) {
-            surfaceData.invalidate();
-        }
-        super.dispose();
-    }
-
-    private void cancelTasks() {
-        synchronized (taskLock) {
-            if (showHideTask != null) {
-                showHideTask.cancel();
-                showHideTask = null;
-            }
-        }
-    }
-
     private void updateIconSize() {
         int newSize = -1;
 
@@ -354,14 +356,14 @@ public final class CWarningWindow extends CPlatformWindow
         }
     }
 
-    private Graphics getGraphics() {
+    private final Graphics getGraphics() {
         SurfaceData sd = contentView.getSurfaceData();
         if (ownerWindow == null || sd == null) {
             return null;
         }
 
-        return new SunGraphics2D(sd, SystemColor.windowText, SystemColor.window,
-                                 ownerWindow.getFont());
+        return transformGraphics(new SunGraphics2D(sd, SystemColor.windowText,
+                SystemColor.window, ownerWindow.getFont()));
     }
 
 
@@ -399,59 +401,44 @@ public final class CWarningWindow extends CPlatformWindow
         return getSecurityIconInfo(currentSize, currentIcon);
     }
 
-    private final Lock taskLock = new Lock();
-    private CancelableRunnable showHideTask;
-
-    private abstract static class CancelableRunnable implements Runnable {
-        private volatile boolean perform = true;
-
-        public final void cancel() {
-            perform = false;
-        }
-
-        @Override
-        public final void run() {
-            if (perform) {
-                perform();
-            }
-        }
-
-        public abstract void perform();
-    }
-
-    private class HidingTask extends CancelableRunnable {
-        @Override
-        public void perform() {
+    private final Runnable hidingTask = new Runnable() {
+        public void run() {
             synchronized (lock) {
                 setVisible(false);
             }
 
-            synchronized (taskLock) {
-                showHideTask = null;
+            synchronized (scheduler) {
+                hidingTaskHandle = null;
             }
         }
-    }
+    };
 
-    private class ShowingTask extends CancelableRunnable {
-        @Override
-        public void perform() {
+    private final Runnable showingTask = new Runnable() {
+        public void run() {
             synchronized (lock) {
                 if (!isVisible()) {
                     setVisible(true);
                 }
+
                 repaint();
             }
 
-            synchronized (taskLock) {
+            synchronized (scheduler) {
                 if (currentIcon > 0) {
                     currentIcon--;
-                    showHideTask = new ShowingTask();
-                    LWCToolkit.performOnMainThreadAfterDelay(showHideTask, SHOWING_DELAY);
+                    showingTaskHandle = scheduler.schedule(showingTask, SHOWING_DELAY,
+                            TimeUnit.MILLISECONDS);
                 } else {
-                    showHideTask = null;
+                    showingTaskHandle = null;
                 }
             }
         }
-    }
+    };
+
+    private final ScheduledExecutorService scheduler =
+            Executors.newSingleThreadScheduledExecutor();
+
+    private ScheduledFuture hidingTaskHandle;
+    private ScheduledFuture showingTaskHandle;
 }
 

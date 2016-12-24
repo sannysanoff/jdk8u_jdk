@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,13 +28,12 @@ package sun.lwawt.macosx;
 import sun.awt.SunToolkit;
 import sun.lwawt.LWWindowPeer;
 import sun.lwawt.PlatformEventNotifier;
-
+import sun.lwawt.macosx.event.NSEvent;
 import java.awt.Toolkit;
 import java.awt.event.MouseEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.KeyEvent;
-import java.util.Locale;
 
 /**
  * Translates NSEvents/NPCocoaEvents into AWT events.
@@ -44,16 +43,6 @@ final class CPlatformResponder {
     private final PlatformEventNotifier eventNotifier;
     private final boolean isNpapiCallback;
     private int lastKeyPressCode = KeyEvent.VK_UNDEFINED;
-    private final DeltaAccumulator deltaAccumulatorX = new DeltaAccumulator();
-    private final DeltaAccumulator deltaAccumulatorY = new DeltaAccumulator();
-    private boolean momentumStarted;
-    private int momentumX;
-    private int momentumY;
-    private int momentumModifiers;
-    private int lastDraggedAbsoluteX;
-    private int lastDraggedAbsoluteY;
-    private int lastDraggedRelativeX;
-    private int lastDraggedRelativeY;
 
     CPlatformResponder(final PlatformEventNotifier eventNotifier,
                        final boolean isNpapiCallback) {
@@ -65,7 +54,8 @@ final class CPlatformResponder {
      * Handles mouse events.
      */
     void handleMouseEvent(int eventType, int modifierFlags, int buttonNumber,
-                          int clickCount, int x, int y, int absX, int absY) {
+                          int clickCount, int x, int y, int absoluteX,
+                          int absoluteY) {
         final SunToolkit tk = (SunToolkit)Toolkit.getDefaultToolkit();
         if ((buttonNumber > 2 && !tk.areExtraMouseButtonsEnabled())
                 || buttonNumber > tk.getNumberOfButtons() - 1) {
@@ -74,18 +64,6 @@ final class CPlatformResponder {
 
         int jeventType = isNpapiCallback ? NSEvent.npToJavaEventType(eventType) :
                                            NSEvent.nsToJavaEventType(eventType);
-
-        boolean dragged = jeventType == MouseEvent.MOUSE_DRAGGED;
-        if (dragged  // ignore dragged event that does not change any location
-                && lastDraggedAbsoluteX == absX && lastDraggedRelativeX == x
-                && lastDraggedAbsoluteY == absY && lastDraggedRelativeY == y) return;
-
-        if (dragged || jeventType == MouseEvent.MOUSE_PRESSED) {
-            lastDraggedAbsoluteX = absX;
-            lastDraggedAbsoluteY = absY;
-            lastDraggedRelativeX = x;
-            lastDraggedRelativeY = y;
-        }
 
         int jbuttonNumber = MouseEvent.NOBUTTON;
         int jclickCount = 0;
@@ -98,71 +76,59 @@ final class CPlatformResponder {
             jclickCount = clickCount;
         }
 
-        int jmodifiers = NSEvent.nsToJavaModifiers(modifierFlags);
+        int jmodifiers = NSEvent.nsToJavaMouseModifiers(buttonNumber,
+                                                        modifierFlags);
         boolean jpopupTrigger = NSEvent.isPopupTrigger(jmodifiers);
 
         eventNotifier.notifyMouseEvent(jeventType, System.currentTimeMillis(), jbuttonNumber,
-                x, y, absX, absY, jmodifiers, jclickCount,
+                x, y, absoluteX, absoluteY, jmodifiers, jclickCount,
                 jpopupTrigger, null);
     }
 
     /**
      * Handles scroll events.
      */
-    void handleScrollEvent(int x, int y, final int absX,
-                           final int absY, final int modifierFlags,
+    void handleScrollEvent(int x, int y, final int modifierFlags,
                            final double deltaX, final double deltaY,
-                           final int scrollPhase) {
-        int jmodifiers = NSEvent.nsToJavaModifiers(modifierFlags);
-
-        if (scrollPhase > NSEvent.SCROLL_PHASE_UNSUPPORTED) {
-            if (scrollPhase == NSEvent.SCROLL_PHASE_BEGAN) {
-                momentumStarted = false;
-            } else if (scrollPhase == NSEvent.SCROLL_PHASE_MOMENTUM_BEGAN) {
-                momentumStarted = true;
-                momentumX = x;
-                momentumY = y;
-                momentumModifiers = jmodifiers;
-            } else if (momentumStarted) {
-                x = momentumX;
-                y = momentumY;
-                jmodifiers = momentumModifiers;
-            }
-        }
+                           final boolean hasPreciseScrollingDeltas,
+                           final double scrollingDeltaX, final double scrollingDeltaY) {
+        final int buttonNumber = CocoaConstants.kCGMouseButtonCenter;
+        int jmodifiers = NSEvent.nsToJavaMouseModifiers(buttonNumber,
+                                                        modifierFlags);
         final boolean isShift = (jmodifiers & InputEvent.SHIFT_DOWN_MASK) != 0;
 
-        int roundDeltaX = deltaAccumulatorX.getRoundedDelta(deltaX, scrollPhase);
-        int roundDeltaY = deltaAccumulatorY.getRoundedDelta(deltaY, scrollPhase);
-
         // Vertical scroll.
-        if (!isShift && (deltaY != 0.0 || roundDeltaY != 0)) {
-            dispatchScrollEvent(x, y, absX, absY, jmodifiers, roundDeltaY, deltaY);
+        if (!isShift && (scrollingDeltaY != 0.0 || deltaY != 0.0)) {
+            dispatchScrollEvent(x, y, jmodifiers, deltaY, scrollingDeltaY);
         }
         // Horizontal scroll or shirt+vertical scroll.
+        final double scrollingDelta = isShift && scrollingDeltaY != 0.0 ? scrollingDeltaY : scrollingDeltaX;
         final double delta = isShift && deltaY != 0.0 ? deltaY : deltaX;
-        final int roundDelta = isShift && roundDeltaY != 0 ? roundDeltaY : roundDeltaX;
-        if (delta != 0.0 || roundDelta != 0) {
+        if (scrollingDelta != 0.0 || delta != 0.0) {
             jmodifiers |= InputEvent.SHIFT_DOWN_MASK;
-            dispatchScrollEvent(x, y, absX, absY, jmodifiers, roundDelta, delta);
+            dispatchScrollEvent(x, y, jmodifiers, delta, scrollingDelta);
         }
     }
 
-    private void dispatchScrollEvent(final int x, final int y, final int absX,
-                                     final int absY, final int modifiers,
-                                     final int roundDelta, final double delta) {
+    private void dispatchScrollEvent(final int x, final int y,
+                                     final int modifiers, final double delta, final double scrollingDelta) {
         final long when = System.currentTimeMillis();
         final int scrollType = MouseWheelEvent.WHEEL_UNIT_SCROLL;
         final int scrollAmount = 1;
+        int wheelRotation = (int) delta;
+        int signum = (int) Math.signum(delta);
+        if (signum * delta < 1) {
+            wheelRotation = signum;
+        }
         // invert the wheelRotation for the peer
-        eventNotifier.notifyMouseWheelEvent(when, x, y, absX, absY, modifiers,
-                                            scrollType, scrollAmount,
-                                            -roundDelta, -delta, null);
+        eventNotifier.notifyMouseWheelEvent(when, x, y, modifiers, scrollType,
+                scrollAmount, -wheelRotation, -delta, -scrollingDelta, null);
     }
 
     /**
      * Handles key events.
      */
-    void handleKeyEvent(int eventType, int modifierFlags, String chars, String charsIgnoringModifiers,
+    void handleKeyEvent(int eventType, int modifierFlags, String chars,
                         short keyCode, boolean needsKeyTyped, boolean needsKeyReleased) {
         boolean isFlagsChangedEvent =
             isNpapiCallback ? (eventType == CocoaConstants.NPCocoaEventFlagsChanged) :
@@ -172,7 +138,6 @@ final class CPlatformResponder {
         int jkeyCode = KeyEvent.VK_UNDEFINED;
         int jkeyLocation = KeyEvent.KEY_LOCATION_UNKNOWN;
         boolean postsTyped = false;
-        boolean spaceKeyTyped = false;
 
         char testChar = KeyEvent.CHAR_UNDEFINED;
         boolean isDeadChar = (chars!= null && chars.length() == 0);
@@ -189,17 +154,9 @@ final class CPlatformResponder {
         } else {
             if (chars != null && chars.length() > 0) {
                 testChar = chars.charAt(0);
-
-                //Check if String chars contains SPACE character.
-                if (chars.trim().isEmpty()) {
-                    spaceKeyTyped = true;
-                }
             }
 
-            char testCharIgnoringModifiers = charsIgnoringModifiers != null && charsIgnoringModifiers.length() > 0 ?
-                    charsIgnoringModifiers.charAt(0) : KeyEvent.CHAR_UNDEFINED;
-
-            int[] in = new int[] {testCharIgnoringModifiers, isDeadChar ? 1 : 0, modifierFlags, keyCode};
+            int[] in = new int[] {testChar, isDeadChar ? 1 : 0, modifierFlags, keyCode};
             int[] out = new int[3]; // [jkeyCode, jkeyLocation, deadChar]
 
             postsTyped = NSEvent.nsToJavaKeyInfo(in, out);
@@ -214,23 +171,13 @@ final class CPlatformResponder {
                 }
             }
 
-            // If Pinyin Simplified input method is selected, CAPS_LOCK key is supposed to switch
-            // input to latin letters.
-            // It is necessary to use testCharIgnoringModifiers instead of testChar for event
-            // generation in such case to avoid uppercase letters in text components.
-            LWCToolkit lwcToolkit = (LWCToolkit)Toolkit.getDefaultToolkit();
-            if (lwcToolkit.getLockingKeyState(KeyEvent.VK_CAPS_LOCK) &&
-                    Locale.SIMPLIFIED_CHINESE.equals(lwcToolkit.getDefaultKeyboardLocale())) {
-                testChar = testCharIgnoringModifiers;
-            }
-
             jkeyCode = out[0];
             jkeyLocation = out[1];
             jeventType = isNpapiCallback ? NSEvent.npToJavaEventType(eventType) :
                                            NSEvent.nsToJavaEventType(eventType);
         }
 
-        char javaChar = NSEvent.nsToJavaChar(testChar, modifierFlags, spaceKeyTyped);
+        char javaChar = NSEvent.nsToJavaChar(testChar, modifierFlags);
         // Some keys may generate a KEY_TYPED, but we can't determine
         // what that character is. That's likely a bug, but for now we
         // just check for CHAR_UNDEFINED.
@@ -238,7 +185,8 @@ final class CPlatformResponder {
             postsTyped = false;
         }
 
-        int jmodifiers = NSEvent.nsToJavaModifiers(modifierFlags);
+
+        int jmodifiers = NSEvent.nsToJavaKeyModifiers(modifierFlags);
         long when = System.currentTimeMillis();
 
         if (jeventType == KeyEvent.KEY_PRESSED) {
@@ -296,44 +244,5 @@ final class CPlatformResponder {
 
     void handleWindowFocusEvent(boolean gained, LWWindowPeer opposite) {
         eventNotifier.notifyActivation(gained, opposite);
-    }
-
-    static class DeltaAccumulator {
-
-        double accumulatedDelta;
-        boolean accumulate;
-
-        int getRoundedDelta(double delta, int scrollPhase) {
-
-            int roundDelta = (int) Math.round(delta);
-
-            if (scrollPhase == NSEvent.SCROLL_PHASE_UNSUPPORTED) { // mouse wheel
-                if (roundDelta == 0 && delta != 0) {
-                    roundDelta = delta > 0 ? 1 : -1;
-                }
-            } else { // trackpad
-                if (scrollPhase == NSEvent.SCROLL_PHASE_BEGAN) {
-                    accumulatedDelta = 0;
-                    accumulate = true;
-                }
-                else if (scrollPhase == NSEvent.SCROLL_PHASE_MOMENTUM_BEGAN) {
-                    accumulate = true;
-                }
-                if (accumulate) {
-
-                    accumulatedDelta += delta;
-
-                    roundDelta = (int) Math.round(accumulatedDelta);
-
-                    accumulatedDelta -= roundDelta;
-
-                    if (scrollPhase == NSEvent.SCROLL_PHASE_ENDED) {
-                        accumulate = false;
-                    }
-                }
-            }
-
-            return roundDelta;
-        }
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,22 +23,16 @@
  * questions.
  */
 
-package sun.lwawt.macosx;
+package sun.lwawt.macosx.event;
 
+import sun.lwawt.macosx.CocoaConstants;
 import java.awt.event.*;
 
 /**
  * A class representing Cocoa NSEvent class with the fields only necessary for
  * JDK functionality.
  */
-final class NSEvent {
-
-    static final int SCROLL_PHASE_UNSUPPORTED = 1;
-    static final int SCROLL_PHASE_BEGAN = 2;
-    static final int SCROLL_PHASE_CONTINUED = 3;
-    static final int SCROLL_PHASE_MOMENTUM_BEGAN = 4;
-    static final int SCROLL_PHASE_ENDED = 5;
-
+public final class NSEvent {
     private int type;
     private int modifierFlags;
 
@@ -47,30 +41,29 @@ final class NSEvent {
     private int buttonNumber;
     private int x;
     private int y;
-    private double scrollDeltaY;
-    private double scrollDeltaX;
-    private int scrollPhase;
+    private double deltaY;
+    private double deltaX;
+    private boolean hasPreciseScrollingDeltas;
+    private double scrollingDeltaY;
+    private double scrollingDeltaX;
     private int absX;
     private int absY;
 
     // Key event information
     private short keyCode;
-    private String characters;
     private String charactersIgnoringModifiers;
 
-    // Called from native
-    NSEvent(int type, int modifierFlags, short keyCode, String characters, String charactersIgnoringModifiers) {
+    public NSEvent(int type, int modifierFlags, short keyCode, String charactersIgnoringModifiers) {
         this.type = type;
         this.modifierFlags = modifierFlags;
         this.keyCode = keyCode;
-        this.characters = characters;
         this.charactersIgnoringModifiers = charactersIgnoringModifiers;
     }
 
-    // Called from native
-    NSEvent(int type, int modifierFlags, int clickCount, int buttonNumber,
+    public NSEvent(int type, int modifierFlags, int clickCount, int buttonNumber,
                    int x, int y, int absX, int absY,
-                   double scrollDeltaY, double scrollDeltaX, int scrollPhase) {
+                   double deltaY, double deltaX,
+                   boolean hasPreciseScrollingDeltas, double scrollingDeltaY, double scrollingDeltaX) {
         this.type = type;
         this.modifierFlags = modifierFlags;
         this.clickCount = clickCount;
@@ -79,65 +72,71 @@ final class NSEvent {
         this.y = y;
         this.absX = absX;
         this.absY = absY;
-        this.scrollDeltaY = scrollDeltaY;
-        this.scrollDeltaX = scrollDeltaX;
-        this.scrollPhase = scrollPhase;
+        this.deltaY = deltaY;
+        this.deltaX = deltaX;
+        this.hasPreciseScrollingDeltas = hasPreciseScrollingDeltas;
+        this.scrollingDeltaY = scrollingDeltaY;
+        this.scrollingDeltaX = scrollingDeltaX;
     }
 
-    int getType() {
+    public int getType() {
         return type;
     }
 
-    int getModifierFlags() {
+    public int getModifierFlags() {
         return modifierFlags;
     }
 
-    int getClickCount() {
+    public int getClickCount() {
         return clickCount;
     }
 
-    int getButtonNumber() {
+    public int getButtonNumber() {
         return buttonNumber;
     }
 
-    int getX() {
+    public int getX() {
         return x;
     }
 
-    int getY() {
+    public int getY() {
         return y;
     }
 
-    double getScrollDeltaY() {
-        return scrollDeltaY;
+    public double getDeltaY() {
+        return deltaY;
     }
 
-    double getScrollDeltaX() {
-        return scrollDeltaX;
+    double getDeltaX() {
+        return deltaX;
     }
 
-    int getScrollPhase() {
-        return scrollPhase;
+    boolean hasPreciseScrollingDeltas() {
+        return hasPreciseScrollingDeltas;
     }
 
-    int getAbsX() {
+    public double getScrollingDeltaY() {
+        return scrollingDeltaY;
+    }
+
+    double getScrollingDeltaX() {
+        return scrollingDeltaX;
+    }
+
+    public int getAbsX() {
         return absX;
     }
 
-    int getAbsY() {
+    public int getAbsY() {
         return absY;
     }
 
-    short getKeyCode() {
+    public short getKeyCode() {
         return keyCode;
     }
 
-    String getCharactersIgnoringModifiers() {
+    public String getCharactersIgnoringModifiers() {
         return charactersIgnoringModifiers;
-    }
-
-    String getCharacters() {
-        return characters;
     }
 
     @Override
@@ -145,13 +144,13 @@ final class NSEvent {
         return "NSEvent[" + getType() + " ," + getModifierFlags() + " ,"
                 + getClickCount() + " ," + getButtonNumber() + " ," + getX() + " ,"
                 + getY() + " ," + getAbsX() + " ," + getAbsY()+ " ," + getKeyCode() + " ,"
-                + getCharacters() + " ," + getCharactersIgnoringModifiers() + "]";
+                + getCharactersIgnoringModifiers() + "]";
     }
 
     /*
      * Converts an NSEvent button number to a MouseEvent constant.
      */
-    static int nsToJavaButton(int buttonNumber) {
+    public static int nsToJavaButton(int buttonNumber) {
         int jbuttonNumber = buttonNumber + 1;
         switch (buttonNumber) {
             case CocoaConstants.kCGMouseButtonLeft:
@@ -170,7 +169,7 @@ final class NSEvent {
     /*
      * Converts NPCocoaEvent types to AWT event types.
      */
-    static int npToJavaEventType(int npEventType) {
+    public static int npToJavaEventType(int npEventType) {
         int jeventType = 0;
         switch (npEventType) {
             case CocoaConstants.NPCocoaEventMouseDown:
@@ -204,7 +203,7 @@ final class NSEvent {
     /*
      * Converts NSEvent types to AWT event types.
      */
-    static int nsToJavaEventType(int nsEventType) {
+    public static int nsToJavaEventType(int nsEventType) {
         int jeventType = 0;
         switch (nsEventType) {
             case CocoaConstants.NSLeftMouseDown:
@@ -244,32 +243,34 @@ final class NSEvent {
         return jeventType;
     }
 
-    /**
-     * Converts NSEvent key modifiers to AWT key modifiers. Note that this
-     * method adds the current mouse state as a mouse modifiers.
-     *
-     * @param  modifierFlags the NSEvent key modifiers
-     * @return the java key and mouse modifiers
+    /*
+     * Converts NSEvent mouse modifiers to AWT mouse modifiers.
      */
-    static native int nsToJavaModifiers(int modifierFlags);
+    public static native int nsToJavaMouseModifiers(int buttonNumber,
+                                                    int modifierFlags);
+
+    /*
+     * Converts NSEvent key modifiers to AWT key modifiers.
+     */
+    public static native int nsToJavaKeyModifiers(int modifierFlags);
 
     /*
      * Converts NSEvent key info to AWT key info.
      */
-    static native boolean nsToJavaKeyInfo(int[] in, int[] out);
+    public static native boolean nsToJavaKeyInfo(int[] in, int[] out);
 
     /*
      * Converts NSEvent key modifiers to AWT key info.
      */
-    static native void nsKeyModifiersToJavaKeyInfo(int[] in, int[] out);
+    public static native void nsKeyModifiersToJavaKeyInfo(int[] in, int[] out);
 
     /*
      * There is a small number of NS characters that need to be converted
      * into other characters before we pass them to AWT.
      */
-    static native char nsToJavaChar(char nsChar, int modifierFlags, boolean spaceKeyTyped);
+    public static native char nsToJavaChar(char nsChar, int modifierFlags);
 
-    static boolean isPopupTrigger(int jmodifiers) {
+    public static boolean isPopupTrigger(int jmodifiers) {
         final boolean isRightButtonDown = ((jmodifiers & InputEvent.BUTTON3_DOWN_MASK) != 0);
         final boolean isLeftButtonDown = ((jmodifiers & InputEvent.BUTTON1_DOWN_MASK) != 0);
         final boolean isControlDown = ((jmodifiers & InputEvent.CTRL_DOWN_MASK) != 0);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,13 +27,11 @@ package sun.lwawt.macosx;
 
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 import sun.awt.CGraphicsConfig;
 import sun.awt.CGraphicsEnvironment;
 import sun.lwawt.LWWindowPeer;
+import sun.lwawt.macosx.event.NSEvent;
 
 import sun.java2d.SurfaceData;
 import sun.java2d.opengl.CGLLayer;
@@ -86,7 +84,7 @@ public class CPlatformView extends CFRetainedResource {
      * Cocoa coordinates).
      */
     public void setBounds(int x, int y, int width, int height) {
-        execute(ptr->CWrapper.NSView.setFrame(ptr, x, y, width, height));
+        CWrapper.NSView.setFrame(ptr, x, y, width, height);
     }
 
     // REMIND: CGLSurfaceData expects top-level's size
@@ -99,7 +97,7 @@ public class CPlatformView extends CFRetainedResource {
     }
 
     public void setToolTip(String msg) {
-        execute(ptr -> CWrapper.NSView.setToolTip(ptr, msg));
+        CWrapper.NSView.setToolTip(ptr, msg);
     }
 
     // ----------------------------------------------------------------------
@@ -150,25 +148,18 @@ public class CPlatformView extends CFRetainedResource {
     }
 
     public void setAutoResizable(boolean toResize) {
-        execute(ptr -> nativeSetAutoResizable(ptr, toResize));
+        nativeSetAutoResizable(this.getAWTView(), toResize);
     }
 
     public boolean isUnderMouse() {
-        AtomicBoolean ref = new AtomicBoolean();
-        execute(ptr -> {
-            ref.set(nativeIsViewUnderMouse(ptr));
-        });
-        return ref.get();
+        return nativeIsViewUnderMouse(getAWTView());
     }
 
     public GraphicsDevice getGraphicsDevice() {
         GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
         CGraphicsEnvironment cge = (CGraphicsEnvironment)ge;
-        AtomicInteger ref = new AtomicInteger();
-        execute(ptr -> {
-            ref.set(nativeGetNSViewDisplayID(ptr));
-        });
-        GraphicsDevice gd = cge.getScreenDevice(ref.get());
+        int displayID = nativeGetNSViewDisplayID(getAWTView());
+        GraphicsDevice gd = cge.getScreenDevice(displayID);
         if (gd == null) {
             // this could possibly happen during device removal
             // use the default screen device in this case
@@ -178,15 +169,8 @@ public class CPlatformView extends CFRetainedResource {
     }
 
     public Point getLocationOnScreen() {
-        AtomicReference<Rectangle> ref = new AtomicReference<>();
-        execute(ptr -> {
-            ref.set(nativeGetLocationOnScreen(ptr).getBounds());
-        });
-        Rectangle r = ref.get();
-        if (r != null) {
-            return new Point(r.x, r.y);
-        }
-        return new Point(0, 0);
+        Rectangle r = nativeGetLocationOnScreen(this.getAWTView()).getBounds();
+        return new Point(r.x, r.y);
     }
 
     // ----------------------------------------------------------------------
@@ -203,25 +187,22 @@ public class CPlatformView extends CFRetainedResource {
     }
 
 
-    private void deliverMouseEvent(final NSEvent event) {
+    private void deliverMouseEvent(NSEvent event) {
         int x = event.getX();
         int y = getBounds().height - event.getY();
-        int absX = event.getAbsX();
-        int absY = event.getAbsY();
 
         if (event.getType() == CocoaConstants.NSScrollWheel) {
-            responder.handleScrollEvent(x, y, absX, absY, event.getModifierFlags(),
-                                        event.getScrollDeltaX(), event.getScrollDeltaY(),
-                                        event.getScrollPhase());
+            responder.handleScrollEvent(x, y, event.getModifierFlags(),
+                                        event.getDeltaX(), event.getDeltaY(),
+                                        event.hasPreciseScrollingDeltas(), event.getScrollingDeltaX(), event.getScrollingDeltaY());
         } else {
             responder.handleMouseEvent(event.getType(), event.getModifierFlags(), event.getButtonNumber(),
-                                       event.getClickCount(), x, y,
-                                       absX, absY);
+                                       event.getClickCount(), x, y, event.getAbsX(), event.getAbsY());
         }
     }
 
     private void deliverKeyEvent(NSEvent event) {
-        responder.handleKeyEvent(event.getType(), event.getModifierFlags(), event.getCharacters(),
+        responder.handleKeyEvent(event.getType(), event.getModifierFlags(),
                                  event.getCharactersIgnoringModifiers(), event.getKeyCode(), true, false);
     }
 

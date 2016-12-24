@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,6 @@
  * questions.
  */
 
-#import "jni_util.h"
-
 #import <AppKit/AppKit.h>
 #import <JavaNativeFoundation/JavaNativeFoundation.h>
 
@@ -32,6 +30,7 @@
 #import "ThreadUtilities.h"
 #include "GeomUtilities.h"
 #import "LWCToolkit.h"
+#import "OSVersion.h"
 
 #define kImageInset 4.0
 
@@ -39,21 +38,18 @@
  * If the image of the specified size won't fit into the status bar,
  * then scale it down proprtionally. Otherwise, leave it as is.
  */
-static NSSize ScaledImageSizeForStatusBar(NSSize imageSize, BOOL autosize) {
+static NSSize ScaledImageSizeForStatusBar(NSSize imageSize) {
     NSRect imageRect = NSMakeRect(0.0, 0.0, imageSize.width, imageSize.height);
 
     // There is a black line at the bottom of the status bar
     // that we don't want to cover with image pixels.
-    CGFloat desiredSize = [[NSStatusBar systemStatusBar] thickness] - 1.0;
-    if (autosize) {
-        imageRect.size.width = desiredSize;
-        imageRect.size.height = desiredSize;
-    } else {
-        CGFloat scaleFactor = MIN(1.0, desiredSize/imageSize.height);
-        imageRect.size.width *= scaleFactor;
-        imageRect.size.height *= scaleFactor;
-    }
+    CGFloat desiredHeight = [[NSStatusBar systemStatusBar] thickness] - 1.0;
+    CGFloat scaleFactor = MIN(1.0, desiredHeight/imageSize.height);
+
+    imageRect.size.width *= scaleFactor;
+    imageRect.size.height *= scaleFactor;
     imageRect = NSIntegralRect(imageRect);
+
     return imageRect.size;
 }
 
@@ -104,9 +100,9 @@ static NSSize ScaledImageSizeForStatusBar(NSSize imageSize, BOOL autosize) {
     return peer;
 }
 
-- (void) setImage:(NSImage *) imagePtr sizing:(BOOL)autosize {
+- (void) setImage:(NSImage *) imagePtr sizing:(BOOL)autosize{
     NSSize imageSize = [imagePtr size];
-    NSSize scaledSize = ScaledImageSizeForStatusBar(imageSize, autosize);
+    NSSize scaledSize = ScaledImageSizeForStatusBar(imageSize);
     if (imageSize.width != scaledSize.width ||
         imageSize.height != scaledSize.height) {
         [imagePtr setSize: scaledSize];
@@ -140,15 +136,9 @@ static NSSize ScaledImageSizeForStatusBar(NSSize imageSize, BOOL autosize) {
 
     clickCount = [event clickCount];
 
-    jdouble deltaX = [event deltaX];
-    jdouble deltaY = [event deltaY];
-    if ([AWTToolkit hasPreciseScrollingDeltas: event]) {
-        deltaX = [event scrollingDeltaX] * 0.1;
-        deltaY = [event scrollingDeltaY] * 0.1;
-    }
-
-    static JNF_CLASS_CACHE(jc_NSEvent, "sun/lwawt/macosx/NSEvent");
-    static JNF_CTOR_CACHE(jctor_NSEvent, jc_NSEvent, "(IIIIIIIIDDI)V");
+    bool hasPreciseScrollingDeltas = type == NSScrollWheel && !isSnowLeopardOrLower() && [event hasPreciseScrollingDeltas];
+    static JNF_CLASS_CACHE(jc_NSEvent, "sun/lwawt/macosx/event/NSEvent");
+    static JNF_CTOR_CACHE(jctor_NSEvent, jc_NSEvent, "(IIIIIIIIDDZDDI)V");
     jobject jEvent = JNFNewObject(env, jctor_NSEvent,
                                   [event type],
                                   [event modifierFlags],
@@ -156,15 +146,19 @@ static NSSize ScaledImageSizeForStatusBar(NSSize imageSize, BOOL autosize) {
                                   [event buttonNumber],
                                   (jint)localPoint.x, (jint)localPoint.y,
                                   (jint)absP.x, (jint)absP.y,
-                                  deltaY,
-                                  deltaX,
-                                  [AWTToolkit scrollStateWithEvent: event]);
-    CHECK_NULL(jEvent);
+                                  [event deltaY],
+                                  [event deltaX],
+                                  hasPreciseScrollingDeltas,
+                                  hasPreciseScrollingDeltas ? [event scrollingDeltaY] : 0.0,
+                                  hasPreciseScrollingDeltas ? [event scrollingDeltaX] : 0.0);
+    if (jEvent == nil) {
+        // Unable to create event by some reason.
+        return;
+    }
 
     static JNF_CLASS_CACHE(jc_TrayIcon, "sun/lwawt/macosx/CTrayIcon");
-    static JNF_MEMBER_CACHE(jm_handleMouseEvent, jc_TrayIcon, "handleMouseEvent", "(Lsun/lwawt/macosx/NSEvent;)V");
+    static JNF_MEMBER_CACHE(jm_handleMouseEvent, jc_TrayIcon, "handleMouseEvent", "(Lsun/lwawt/macosx/event/NSEvent;)V");
     JNFCallVoidMethod(env, peer, jm_handleMouseEvent, jEvent);
-    (*env)->DeleteLocalRef(env, jEvent);
 }
 
 @end //AWTTrayIcon
@@ -178,27 +172,12 @@ static NSSize ScaledImageSizeForStatusBar(NSSize imageSize, BOOL autosize) {
     [self setTrayIcon: theTrayIcon];
     isHighlighted = NO;
     image = nil;
-    trackingArea = nil;
-	
-    [self addTrackingArea];
-	
-    return self;
-}
 
-- (void)addTrackingArea {
-    NSTrackingAreaOptions options = NSTrackingMouseMoved | 
-                                    NSTrackingInVisibleRect | 
-                                    NSTrackingActiveAlways;
-    trackingArea = [[NSTrackingArea alloc] initWithRect: CGRectZero
-                                                options: options
-                                                owner: self
-                                                userInfo: nil];
-    [self addTrackingArea:trackingArea];
+    return self;
 }
 
 -(void) dealloc {
     [image release];
-    [trackingArea release];
     [super dealloc];
 }
 
@@ -288,10 +267,6 @@ static NSSize ScaledImageSizeForStatusBar(NSSize imageSize, BOOL autosize) {
 }
 
 - (void) mouseDragged:(NSEvent *)event {
-    [trayIcon deliverJavaMouseEvent: event];
-}
-
-- (void) mouseMoved: (NSEvent *)event {
     [trayIcon deliverJavaMouseEvent: event];
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,24 +23,23 @@
  * questions.
  */
 
-
 package sun.lwawt.macosx;
 
-import java.awt.AWTKeyStroke;
-import java.awt.Point;
-import java.awt.Toolkit;
-
-import sun.awt.AWTAccessor;
-import sun.awt.EmbeddedFrame;
+import sun.lwawt.LWToolkit;
 import sun.lwawt.LWWindowPeer;
+import sun.lwawt.macosx.CocoaConstants;
+import sun.lwawt.macosx.event.NSEvent;
 
-@SuppressWarnings("serial") // JDK implementation class
+import sun.awt.EmbeddedFrame;
+
+import java.awt.*;
+import java.awt.event.*;
+
 public class CEmbeddedFrame extends EmbeddedFrame {
 
     private CPlatformResponder responder;
     private static final Object classLock = new Object();
-    private static volatile CEmbeddedFrame globalFocusedWindow;
-    private CEmbeddedFrame browserWindowFocusedApplet;
+    private static volatile CEmbeddedFrame focusedWindow;
     private boolean parentWindowActive = true;
 
     public CEmbeddedFrame() {
@@ -48,8 +47,8 @@ public class CEmbeddedFrame extends EmbeddedFrame {
     }
 
     public void addNotify() {
-        if (!isDisplayable()) {
-            LWCToolkit toolkit = (LWCToolkit)Toolkit.getDefaultToolkit();
+        if (getPeer() == null) {
+            LWToolkit toolkit = (LWToolkit)Toolkit.getDefaultToolkit();
             LWWindowPeer peer = toolkit.createEmbeddedFrame(this);
             setPeer(peer);
             responder = new CPlatformResponder(peer, true);
@@ -62,8 +61,8 @@ public class CEmbeddedFrame extends EmbeddedFrame {
     public void unregisterAccelerator(AWTKeyStroke stroke) {}
 
     protected long getLayerPtr() {
-        return AWTAccessor.getComponentAccessor().<LWWindowPeer>getPeer(this)
-                          .getLayerPtr();
+        LWWindowPeer peer = (LWWindowPeer)getPeer();
+        return peer.getLayerPtr();
     }
 
     // -----------------------------------------------------------------------
@@ -75,8 +74,8 @@ public class CEmbeddedFrame extends EmbeddedFrame {
         int x = (int)pluginX;
         int y = (int)pluginY;
         Point locationOnScreen = getLocationOnScreen();
-        int absX = locationOnScreen.x + x;
-        int absY = locationOnScreen.y + y;
+        int screenX = locationOnScreen.x + x;
+        int screenY = locationOnScreen.y + y;
 
         if (eventType == CocoaConstants.NPCocoaEventMouseEntered) {
             CCursorManager.nativeSetAllowsCursorSetInBackground(true);
@@ -85,26 +84,21 @@ public class CEmbeddedFrame extends EmbeddedFrame {
         }
 
         responder.handleMouseEvent(eventType, modifierFlags, buttonNumber,
-                                   clickCount, x, y, absX, absY);
+                                   clickCount, x, y, screenX, screenY);
     }
 
     public void handleScrollEvent(double pluginX, double pluginY, int modifierFlags,
                                   double deltaX, double deltaY, double deltaZ) {
         int x = (int)pluginX;
         int y = (int)pluginY;
-        Point locationOnScreen = getLocationOnScreen();
-        int absX = locationOnScreen.x + x;
-        int absY = locationOnScreen.y + y;
 
-        responder.handleScrollEvent(x, y, absX, absY, modifierFlags, deltaX,
-                                    deltaY, NSEvent.SCROLL_PHASE_UNSUPPORTED);
+        responder.handleScrollEvent(x, y, modifierFlags, deltaX, deltaY, false, 0.0, 0.0);
     }
 
     public void handleKeyEvent(int eventType, int modifierFlags, String characters,
                                String charsIgnoringMods, boolean isRepeat, short keyCode,
                                boolean needsKeyTyped) {
-        responder.handleKeyEvent(eventType, modifierFlags, characters, charsIgnoringMods,
-                keyCode, needsKeyTyped, isRepeat);
+        responder.handleKeyEvent(eventType, modifierFlags, charsIgnoringMods, keyCode, needsKeyTyped, isRepeat);
     }
 
     public void handleInputEvent(String text) {
@@ -117,16 +111,16 @@ public class CEmbeddedFrame extends EmbeddedFrame {
         synchronized (classLock) {
             // In some cases an applet may not receive the focus lost event
             // from the parent window (see 8012330)
-            globalFocusedWindow = (focused) ? this
-                    : ((globalFocusedWindow == this) ? null : globalFocusedWindow);
+            focusedWindow = (focused) ? this
+                    : ((focusedWindow == this) ? null : focusedWindow);
         }
-        if (globalFocusedWindow == this) {
+        if (focusedWindow == this) {
             // see bug 8010925
             // we can't put this to handleWindowFocusEvent because
             // it won't be invoced if focuse is moved to a html element
             // on the same page.
             CClipboard clipboard = (CClipboard) Toolkit.getDefaultToolkit().getSystemClipboard();
-            clipboard.checkPasteboardAndNotify();
+            clipboard.checkPasteboard();
         }
         if (parentWindowActive) {
             responder.handleWindowFocusEvent(focused, null);
@@ -151,34 +145,14 @@ public class CEmbeddedFrame extends EmbeddedFrame {
     // non-focused applet. This method can be called from different threads.
     public void handleWindowFocusEvent(boolean parentWindowActive) {
         this.parentWindowActive = parentWindowActive;
-        // If several applets are running in different browser's windows, it is necessary to
-        // detect the switching between the parent windows and update globalFocusedWindow accordingly.
-        synchronized (classLock) {
-            if (!parentWindowActive) {
-                this.browserWindowFocusedApplet = globalFocusedWindow;
-            }
-            if (parentWindowActive && globalFocusedWindow != this && isParentWindowChanged()) {
-                // It looks like we have switched to another browser window, let's restore focus to
-                // the previously focused applet in this window. If no applets were focused in the
-                // window, we will set focus to the first applet in the window.
-                globalFocusedWindow = (this.browserWindowFocusedApplet != null) ? this.browserWindowFocusedApplet
-                        : this;
-            }
-        }
         // ignore focus "lost" native request as it may mistakenly
         // deactivate active window (see 8001161)
-        if (globalFocusedWindow == this) {
+        if (focusedWindow == this && parentWindowActive) {
             responder.handleWindowFocusEvent(parentWindowActive, null);
         }
     }
 
     public boolean isParentWindowActive() {
         return parentWindowActive;
-    }
-
-    private boolean isParentWindowChanged() {
-        // If globalFocusedWindow is located at inactive parent window or null, we have swithed to
-        // another window.
-        return globalFocusedWindow != null ? !globalFocusedWindow.isParentWindowActive() : true;
     }
 }
