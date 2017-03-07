@@ -47,7 +47,7 @@ public class CImage extends CFRetainedResource {
     private static native long nativeCreateNSImageFromImageName(String name);
     private static native long nativeCreateNSImageFromIconSelector(int selector);
     private static native byte[] nativeGetPlatformImageBytes(int[] buffer, int w, int h);
-    private static native void nativeCopyNSImageIntoArray(long image, int[] buffer, int sw, int sh, int dw, int dh);
+    private static native void nativeCopyNSImageIntoArray(long image, int[] buffer, int dw, int dh);
     private static native Dimension2D nativeGetNSImageSize(long image);
     private static native void nativeSetNSImageSize(long image, double w, double h);
     private static native void nativeResizeNSImageRepresentations(long image, double w, double h);
@@ -277,34 +277,30 @@ public class CImage extends CFRetainedResource {
         });
         Dimension2D[] sizes = repRef.get();
 
-        int dstW = baseWidth;
-        int dstH = baseHeight;
-
         // The image may be represented in the only size which differs from the base one.
         // For instance, the app's dock icon is represented in a Retina-scaled size on Retina.
         // Check if a single represenation has a bigger size and in that case use it as the dest size.
         if (sizes != null && sizes.length == 1 &&
             (sizes[0].getWidth() > baseWidth && sizes[0].getHeight() > baseHeight))
         {
-            dstW = (int)sizes[0].getWidth();
-            dstH = (int)sizes[0].getHeight();
+            size = sizes[0];
         }
-        final int dstWidth  = dstW;
-        final int dstHeight = dstH;
+        final int dstWidth  = (int)size.getWidth();
+        final int dstHeight = (int)size.getHeight();
 
 
         return sizes == null || sizes.length < 2 ?
                 new MultiResolutionCachedImage(baseWidth, baseHeight, (width, height)
-                        -> toImage(baseWidth, baseHeight, dstWidth, dstHeight))
+                        -> toImage(dstWidth, dstHeight))
                 : new MultiResolutionCachedImage(baseWidth, baseHeight, sizes, (width, height)
-                        -> toImage(baseWidth, baseHeight, width, height));
+                        -> toImage(width, height));
     }
 
-    private BufferedImage toImage(int srcWidth, int srcHeight, int dstWidth, int dstHeight) {
+    private BufferedImage toImage(int dstWidth, int dstHeight) {
         final BufferedImage bimg = new BufferedImage(dstWidth, dstHeight, BufferedImage.TYPE_INT_ARGB_PRE);
         final DataBufferInt dbi = (DataBufferInt)bimg.getRaster().getDataBuffer();
         final int[] buffer = SunWritableRaster.stealData(dbi, 0);
-        execute(ptr->nativeCopyNSImageIntoArray(ptr, buffer, srcWidth, srcHeight, dstWidth, dstHeight));
+        execute(ptr->nativeCopyNSImageIntoArray(ptr, buffer, dstWidth, dstHeight));
         SunWritableRaster.markDirty(dbi);
         return bimg;
     }
