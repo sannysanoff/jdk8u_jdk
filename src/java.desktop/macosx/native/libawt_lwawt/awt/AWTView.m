@@ -27,6 +27,7 @@
 #import "CGLGraphicsConfig.h"
 #import "AWTView.h"
 #import "AWTWindow.h"
+#import "common.h"
 #import "JavaComponentAccessibility.h"
 #import "JavaTextAccessibility.h"
 #import "JavaAccessibilityUtilities.h"
@@ -35,6 +36,10 @@
 #import "ThreadUtilities.h"
 
 #import <JavaNativeFoundation/JavaNativeFoundation.h>
+
+const int N = 1;
+static struct Vertex verts[N*3];
+
 
 @interface AWTView()
 @property (retain) CDropTarget *_dropTarget;
@@ -57,8 +62,19 @@ static BOOL shouldUsePressAndHold() {
     shouldUsePressAndHold = !isSnowLeopardOrLower();
     return shouldUsePressAndHold;
 }
+// For pipeline executing.
+const int uniformBufferCount = 3;
 
-@implementation AWTView
+@implementation AWTView {
+    id <MTLLibrary> _library;
+    id <MTLCommandQueue> _commandQueue;
+    id <MTLRenderPipelineState> _pipelineState;
+    id <MTLDepthStencilState> _depthState;
+    dispatch_semaphore_t _semaphore;
+    id <MTLBuffer> _uniformBuffers[uniformBufferCount];
+    id <MTLBuffer> _vertexBuffer;
+     int uniformBufferIndex;
+}
 
 @synthesize _dropTarget;
 @synthesize _dragSource;
@@ -72,9 +88,101 @@ static BOOL shouldUsePressAndHold() {
 {
     AWT_ASSERT_APPKIT_THREAD;
     // Initialize ourselves
-    self = [super initWithFrame: rect];
+    id<MTLDevice> device = MTLCreateSystemDefaultDevice();
+    self = [super initWithFrame:rect device:device];
     if (self == nil) return self;
-    
+
+    self.colorPixelFormat = MTLPixelFormatBGRA8Unorm;
+        self.depthStencilPixelFormat = MTLPixelFormatDepth32Float_Stencil8;
+
+    // Load shaders.
+    NSError *error = nil;
+    _library = [self.device newLibraryWithFile: @"/Users/avu/export/jdk8u.git/build/macosx-x86_64-normal-server-release/images/jdk-bundle/jdk-9.0.1.jdk/Contents/Home/lib/shaders.metallib" error:&error];
+    if (!_library) {
+            NSLog(@"Failed to load library. error %@", error);
+            exit(0);
+        }
+        id <MTLFunction> vertFunc = [_library newFunctionWithName:@"vert"];
+        id <MTLFunction> fragFunc = [_library newFunctionWithName:@"frag"];
+
+        // Create depth state.
+        MTLDepthStencilDescriptor *depthDesc = [MTLDepthStencilDescriptor new];
+        depthDesc.depthCompareFunction = MTLCompareFunctionLess;
+        depthDesc.depthWriteEnabled = YES;
+        _depthState = [self.device newDepthStencilStateWithDescriptor:depthDesc];
+
+    MTLVertexDescriptor *vertDesc = [MTLVertexDescriptor new];
+    vertDesc.attributes[VertexAttributePosition].format = MTLVertexFormatFloat3;
+    vertDesc.attributes[VertexAttributePosition].offset = 0;
+    vertDesc.attributes[VertexAttributePosition].bufferIndex = MeshVertexBuffer;
+    vertDesc.attributes[VertexAttributeColor].format = MTLVertexFormatUChar4;
+    vertDesc.attributes[VertexAttributeColor].offset = 3*sizeof(float);
+    vertDesc.attributes[VertexAttributeColor].bufferIndex = MeshVertexBuffer;
+    vertDesc.layouts[MeshVertexBuffer].stride = sizeof(struct Vertex);
+    vertDesc.layouts[MeshVertexBuffer].stepRate = 1;
+    vertDesc.layouts[MeshVertexBuffer].stepFunction = MTLVertexStepFunctionPerVertex;
+
+// Create pipeline state.
+    MTLRenderPipelineDescriptor *pipelineDesc = [MTLRenderPipelineDescriptor new];
+    pipelineDesc.sampleCount = self.sampleCount;
+    pipelineDesc.vertexFunction = vertFunc;
+    pipelineDesc.fragmentFunction = fragFunc;
+    pipelineDesc.vertexDescriptor = vertDesc;
+    pipelineDesc.colorAttachments[0].pixelFormat = self.colorPixelFormat;
+    pipelineDesc.depthAttachmentPixelFormat = self.depthStencilPixelFormat;
+    pipelineDesc.stencilAttachmentPixelFormat = self.depthStencilPixelFormat;
+    _pipelineState = [self.device newRenderPipelineStateWithDescriptor:pipelineDesc error:&error];
+    if (!_pipelineState) {
+        NSLog(@"Failed to create pipeline state, error %@", error);
+        exit(0);
+    }
+
+
+    verts[0].position[0] = 0;
+    verts[0].position[1] = 0;
+    verts[0].position[2] = 0;
+
+    verts[1].position[0] = 1;
+    verts[1].position[1] = 0;
+    verts[1].position[2] = 0;
+
+    verts[2].position[0] = 1;
+    verts[2].position[1] = 1;
+    verts[2].position[2] = 0;
+
+    verts[0].color[0] = 255;
+    verts[0].color[1] = 255;
+    verts[0].color[2] = 255;
+    verts[0].color[3] = 255;
+
+    verts[1].color[0] = 255;
+    verts[1].color[1] = 255;
+    verts[1].color[2] = 255;
+    verts[1].color[3] = 255;
+
+    verts[2].color[0] = 255;
+    verts[2].color[1] = 255;
+    verts[2].color[2] = 255;
+    verts[2].color[3] = 255;
+
+    _vertexBuffer = [self.device newBufferWithBytes:verts
+                                             length:sizeof(verts)
+                                            options:
+                                                    MTLResourceCPUCacheModeDefaultCache];
+    // Create uniform buffers.
+    for (int i = 0; i < uniformBufferCount; i++) {
+        _uniformBuffers[i] = [self.device newBufferWithLength:sizeof(struct FrameUniforms)
+                                          options:MTLResourceCPUCacheModeWriteCombined];
+    }
+
+   _semaphore = dispatch_semaphore_create(uniformBufferCount);
+    uniformBufferIndex = 0;
+
+    // Create command queue
+    _commandQueue = [self.device newCommandQueue];
+    self.paused = YES;
+    self.enableSetNeedsDisplay = YES;
+
     m_cPlatformView = cPlatformView;
     fInputMethodLOCKABLE = NULL;
     fKeyEventsNeeded = NO;
@@ -502,8 +610,56 @@ static BOOL shouldUsePressAndHold() {
 
 - (void) drawRect:(NSRect)dirtyRect {
     AWT_ASSERT_APPKIT_THREAD;
-    
-    [super drawRect:dirtyRect];
+[[NSColor whiteColor] set];
+        NSRectFill( dirtyRect );
+   // if (self.currentDrawable) {
+     dispatch_semaphore_wait(_semaphore, DISPATCH_TIME_FOREVER);
+
+    vector_float4 X = { 1, 0, 0, 0 };
+    vector_float4 Y = { 0, 1, 0, 0 };
+    vector_float4 Z = { 0, 0, 1, 0 };
+    vector_float4 W = { 0, 0, 0, 1 };
+
+    matrix_float4x4 rot = { X, Y, Z, W };
+
+    uniformBufferIndex = (uniformBufferIndex + 1) % uniformBufferCount;
+    struct FrameUniforms *uniforms = (struct FrameUniforms *)[_uniformBuffers[uniformBufferIndex] contents];
+       // uniforms->projectionViewModel = rot;
+
+        // Create a command buffer.
+        id <MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
+
+        // Encode render command.
+        id <MTLRenderCommandEncoder> encoder =
+            [commandBuffer renderCommandEncoderWithDescriptor:self.currentRenderPassDescriptor];
+        MTLViewport vp = {0, 0, self.drawableSize.width, self.drawableSize.height, 0, 1};
+         fprintf(stderr, "%f %f \n", self.drawableSize.width, self.drawableSize.height);
+        [encoder setViewport:vp];
+        [encoder setDepthStencilState:_depthState];
+        [encoder setRenderPipelineState:_pipelineState];
+        [encoder setVertexBuffer:_uniformBuffers[uniformBufferIndex]
+                          offset:0 atIndex:FrameUniformBuffer];
+
+        [encoder setVertexBuffer:_vertexBuffer offset:0 atIndex:MeshVertexBuffer];
+        [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:N*3];
+        [encoder endEncoding];
+
+        // Set callback for semaphore.
+        __block dispatch_semaphore_t semaphore = _semaphore;
+        [commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> buffer) {
+            dispatch_semaphore_signal(semaphore);
+        }];
+        [commandBuffer presentDrawable:self.currentDrawable];
+        [commandBuffer commit];
+        fprintf(stderr, "sssss");
+  //  }
+   // [super drawRect:dirtyRect];
+
+[[NSColor whiteColor] setFill];
+        NSRectFill( dirtyRect );
+
+    fprintf(stderr, "%f %f \n", dirtyRect.size.width, dirtyRect.size.height);
+
     JNIEnv *env = [ThreadUtilities getJNIEnv];
     if (env != NULL) {
         /*
@@ -533,7 +689,11 @@ static BOOL shouldUsePressAndHold() {
         /*
          }
          */
+
     }
+       [[NSColor whiteColor] setFill];
+                     NSRectFill( dirtyRect );
+
 }
 
 -(BOOL) isCodePointInUnicodeBlockNeedingIMEvent: (unichar) codePoint {

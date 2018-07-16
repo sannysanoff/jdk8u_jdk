@@ -131,6 +131,8 @@ AWT_ASSERT_APPKIT_THREAD;
 
 -(void)drawInCGLContext:(CGLContextObj)glContext pixelFormat:(CGLPixelFormatObj)pixelFormat forLayerTime:(CFTimeInterval)timeInterval displayTime:(const CVTimeStamp *)timeStamp
 {
+fprintf(stderr, "drawInCGLContext\n");
+return;
     AWT_ASSERT_APPKIT_THREAD;
 
     JNIEnv *env = [ThreadUtilities getJNIEnv];

@@ -63,6 +63,7 @@ public final class CGraphicsDevice extends GraphicsDevice
         configs = new GraphicsConfiguration[] {
             CGLGraphicsConfig.getConfig(this, 0)
         };
+        System.err.println(nativeGetMetalDeviceName(displayID));
     }
 
     /**
@@ -273,4 +274,6 @@ public final class CGraphicsDevice extends GraphicsDevice
     private static native double nativeGetYResolution(int displayID);
 
     private static native Insets nativeGetScreenInsets(int displayID);
+
+    private static native String nativeGetMetalDeviceName(int displayID);
 }

@@ -24,11 +24,12 @@
  */
 
 #import <Cocoa/Cocoa.h>
-
+#import <Metal/Metal.h>
+#import <MetalKit/MetalKit.h>
 #import "CDragSource.h"
 #import "CDropTarget.h"
 
-@interface AWTView : NSView<NSTextInputClient, CDragSourceHolder, CDropTargetHolder> {
+@interface AWTView : MTKView<NSTextInputClient, CDragSourceHolder, CDropTargetHolder> {
 @private
     jobject m_cPlatformView;
 

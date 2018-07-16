@@ -286,6 +286,7 @@ Java_sun_java2d_opengl_CGLGraphicsConfig_getCGLConfigInfo
         [argValue addObject: [NSNumber numberWithLong: 0L]];
         return;
     }
+    fprintf(stderr, "USE_NSVIEW_FOR_SCRATCH");
     [window setContentView: scratchSurface];
 #else
     NSOpenGLPixelBuffer *scratchSurface =
@@ -403,7 +404,7 @@ Java_sun_java2d_opengl_CGLGraphicsConfig_getCGLConfigInfo
     cglinfo->pixfmt = sharedPixelFormat;
     cglinfo->context = oglc;
 
-    [NSOpenGLContext clearCurrentContext];
+  //  [NSOpenGLContext clearCurrentContext];
     [argValue addObject: [NSNumber numberWithLong:ptr_to_jlong(cglinfo)]];
     [pool drain];
 }
