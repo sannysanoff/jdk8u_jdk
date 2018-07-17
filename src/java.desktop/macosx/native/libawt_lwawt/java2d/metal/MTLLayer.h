@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2008, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,22 +23,37 @@
  * questions.
  */
 
-package sun.java2d.opengl;
+#ifndef MTLLayer_h_Included
+#define MTLLayer_h_Included
 
-import sun.java2d.SurfaceData;
-import sun.awt.image.SurfaceManager;
-import sun.java2d.pipe.hw.AccelGraphicsConfig;
+#import <JavaNativeFoundation/JavaNativeFoundation.h>
 
-/**
- * This interface collects the methods that are provided by both
- * GLXGraphicsConfig and WGLGraphicsConfig, making it easier to invoke these
- * methods directly from OGLSurfaceData.
- */
-public interface OGLGraphicsConfig extends
-    AccelGraphicsConfig, SurfaceManager.ProxiedGraphicsConfig
+@interface MTLLayer : CAOpenGLLayer
 {
-    OGLContext getContext();
-    long getNativeConfigInfo();
-    boolean isCapPresent(int cap);
-    SurfaceData createManagedSurface(int w, int h, int transparency);
+@private
+    JNFWeakJObjectWrapper *javaLayer;
+
+    // intermediate buffer, used the RQ lock to synchronize
+    GLuint textureID;
+    GLenum target;
+    float textureWidth;
+    float textureHeight;
 }
+
+@property (nonatomic, retain) JNFWeakJObjectWrapper *javaLayer;
+@property (readwrite, assign) GLuint textureID;
+@property (readwrite, assign) GLenum target;
+@property (readwrite, assign) float textureWidth;
+@property (readwrite, assign) float textureHeight;
+
+#ifdef REMOTELAYER
+@property (nonatomic, retain) CGLLayer *parentLayer;
+@property (nonatomic, retain) CGLLayer *remoteLayer;
+@property (nonatomic, retain) NSObject<JRSRemoteLayer> *jrsRemoteLayer;
+#endif
+
+- (id) initWithJavaLayer:(JNFWeakJObjectWrapper *)javaLayer;
+- (void) blitTexture;
+@end
+
+#endif /* CGLLayer_h_Included */

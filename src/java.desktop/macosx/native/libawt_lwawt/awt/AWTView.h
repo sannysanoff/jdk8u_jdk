@@ -29,7 +29,7 @@
 #import "CDragSource.h"
 #import "CDropTarget.h"
 
-@interface AWTView : MTKView<NSTextInputClient, CDragSourceHolder, CDropTargetHolder> {
+@interface AWTView : NSView<NSTextInputClient, CDragSourceHolder, CDropTargetHolder> {
 @private
     jobject m_cPlatformView;
 

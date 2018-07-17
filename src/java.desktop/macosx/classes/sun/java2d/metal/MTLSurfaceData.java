@@ -23,35 +23,31 @@
  * questions.
  */
 
-package sun.java2d.opengl;
-
-import java.awt.Graphics;
-import java.awt.GraphicsConfiguration;
-import java.awt.GraphicsDevice;
-import java.awt.GraphicsEnvironment;
-import java.awt.Image;
-import java.awt.Rectangle;
-import java.awt.image.ColorModel;
+package sun.java2d.metal;
 
 import sun.java2d.SunGraphics2D;
 import sun.java2d.SurfaceData;
-
+import sun.java2d.opengl.OGLRenderQueue;
+import sun.java2d.opengl.OGLSurfaceData;
 import sun.lwawt.macosx.CPlatformView;
 
-public abstract class CGLSurfaceData extends OGLSurfaceData {
+import java.awt.*;
+import java.awt.image.ColorModel;
+
+public abstract class MTLSurfaceData extends OGLSurfaceData {
 
     protected final int scale;
     protected final int width;
     protected final int height;
     protected CPlatformView pView;
-    private CGLGraphicsConfig graphicsConfig;
+    private MTLGraphicsConfig graphicsConfig;
 
     native void validate(int xoff, int yoff, int width, int height, boolean isOpaque);
 
     private native void initOps(long pConfigInfo, long pPeerData, long layerPtr,
                                 int xoff, int yoff, boolean isOpaque);
 
-    protected CGLSurfaceData(CGLGraphicsConfig gc, ColorModel cm, int type,
+    protected MTLSurfaceData(MTLGraphicsConfig gc, ColorModel cm, int type,
                              int width, int height) {
         super(gc, cm, type);
         // TEXTURE shouldn't be scaled, it is used for managed BufferedImages.
@@ -60,8 +56,8 @@ public abstract class CGLSurfaceData extends OGLSurfaceData {
         this.height = height * scale;
     }
 
-    protected CGLSurfaceData(CPlatformView pView, CGLGraphicsConfig gc,
-                             ColorModel cm, int type,int width, int height)
+    protected MTLSurfaceData(CPlatformView pView, MTLGraphicsConfig gc,
+                             ColorModel cm, int type, int width, int height)
     {
         this(gc, cm, type, width, height);
         this.pView = pView;
@@ -74,12 +70,12 @@ public abstract class CGLSurfaceData extends OGLSurfaceData {
             pPeerData = pView.getAWTView();
             isOpaque = pView.isOpaque();
         }
-        CGLGraphicsConfig.refPConfigInfo(pConfigInfo);
+        MTLGraphicsConfig.refPConfigInfo(pConfigInfo);
         initOps(pConfigInfo, pPeerData, 0, 0, 0, isOpaque);
     }
 
-    protected CGLSurfaceData(CGLLayer layer, CGLGraphicsConfig gc,
-                             ColorModel cm, int type,int width, int height)
+    protected MTLSurfaceData(MTLLayer layer, MTLGraphicsConfig gc,
+                             ColorModel cm, int type, int width, int height)
     {
         this(gc, cm, type, width, height);
         this.graphicsConfig = gc;
@@ -91,7 +87,7 @@ public abstract class CGLSurfaceData extends OGLSurfaceData {
             layerPtr = layer.getPointer();
             isOpaque = layer.isOpaque();
         }
-        CGLGraphicsConfig.refPConfigInfo(pConfigInfo);
+        MTLGraphicsConfig.refPConfigInfo(pConfigInfo);
         initOps(pConfigInfo, 0, layerPtr, 0, 0, isOpaque);
     }
 
@@ -104,31 +100,31 @@ public abstract class CGLSurfaceData extends OGLSurfaceData {
      * Creates a SurfaceData object representing the primary (front) buffer of
      * an on-screen Window.
      */
-    public static CGLWindowSurfaceData createData(CPlatformView pView) {
-        CGLGraphicsConfig gc = getGC(pView);
-        return new CGLWindowSurfaceData(pView, gc);
+    public static MTLWindowSurfaceData createData(CPlatformView pView) {
+        MTLGraphicsConfig gc = getGC(pView);
+        return new MTLWindowSurfaceData(pView, gc);
     }
 
     /**
      * Creates a SurfaceData object representing the intermediate buffer
      * between the Java2D flusher thread and the AppKit thread.
      */
-    public static CGLLayerSurfaceData createData(CGLLayer layer) {
-        CGLGraphicsConfig gc = getGC(layer);
+    public static MTLLayerSurfaceData createData(MTLLayer layer) {
+        MTLGraphicsConfig gc = getGC(layer);
         Rectangle r = layer.getBounds();
-        return new CGLLayerSurfaceData(layer, gc, r.width, r.height);
+        return new MTLLayerSurfaceData(layer, gc, r.width, r.height);
     }
 
     /**
      * Creates a SurfaceData object representing the back buffer of a
      * double-buffered on-screen Window.
      */
-    public static CGLOffScreenSurfaceData createData(CPlatformView pView,
-            Image image, int type) {
-        CGLGraphicsConfig gc = getGC(pView);
+    public static MTLOffScreenSurfaceData createData(CPlatformView pView,
+                                                     Image image, int type) {
+        MTLGraphicsConfig gc = getGC(pView);
         Rectangle r = pView.getBounds();
         if (type == FLIP_BACKBUFFER) {
-            return new CGLOffScreenSurfaceData(pView, gc, r.width, r.height,
+            return new MTLOffScreenSurfaceData(pView, gc, r.width, r.height,
                     image, gc.getColorModel(), FLIP_BACKBUFFER);
         } else {
             return new CGLVSyncOffScreenSurfaceData(pView, gc, r.width,
@@ -140,31 +136,31 @@ public abstract class CGLSurfaceData extends OGLSurfaceData {
      * Creates a SurfaceData object representing an off-screen buffer (either a
      * FBO or Texture).
      */
-    public static CGLOffScreenSurfaceData createData(CGLGraphicsConfig gc,
-            int width, int height, ColorModel cm, Image image, int type) {
-        return new CGLOffScreenSurfaceData(null, gc, width, height, image, cm,
+    public static MTLOffScreenSurfaceData createData(MTLGraphicsConfig gc,
+                                                     int width, int height, ColorModel cm, Image image, int type) {
+        return new MTLOffScreenSurfaceData(null, gc, width, height, image, cm,
                 type);
     }
 
-    public static CGLGraphicsConfig getGC(CPlatformView pView) {
+    public static MTLGraphicsConfig getGC(CPlatformView pView) {
         if (pView != null) {
-            return (CGLGraphicsConfig)pView.getGraphicsConfiguration();
+            return (MTLGraphicsConfig)pView.getGraphicsConfiguration();
         } else {
             // REMIND: this should rarely (never?) happen, but what if
             // default config is not CGL?
             GraphicsEnvironment env = GraphicsEnvironment
                 .getLocalGraphicsEnvironment();
             GraphicsDevice gd = env.getDefaultScreenDevice();
-            return (CGLGraphicsConfig) gd.getDefaultConfiguration();
+            return (MTLGraphicsConfig) gd.getDefaultConfiguration();
         }
     }
 
-    public static CGLGraphicsConfig getGC(CGLLayer layer) {
-        return (CGLGraphicsConfig)layer.getGraphicsConfiguration();
+    public static MTLGraphicsConfig getGC(MTLLayer layer) {
+        return (MTLGraphicsConfig)layer.getGraphicsConfiguration();
     }
 
     public void validate() {
-        // Overridden in CGLWindowSurfaceData below
+        // Overridden in MTLWindowSurfaceData below
     }
 
     @Override
@@ -179,10 +175,10 @@ public abstract class CGLSurfaceData extends OGLSurfaceData {
 
     protected native void clearWindow();
 
-    public static class CGLWindowSurfaceData extends CGLSurfaceData {
+    public static class MTLWindowSurfaceData extends MTLSurfaceData {
 
-        public CGLWindowSurfaceData(CPlatformView pView,
-                CGLGraphicsConfig gc) {
+        public MTLWindowSurfaceData(CPlatformView pView,
+                                    MTLGraphicsConfig gc) {
             super(pView, gc, gc.getColorModel(), WINDOW, 0, 0);
         }
 
@@ -231,14 +227,14 @@ public abstract class CGLSurfaceData extends OGLSurfaceData {
      * A surface which implements an intermediate buffer between
      * the Java2D flusher thread and the AppKit thread.
      *
-     * This surface serves as a buffer attached to a CGLLayer and
+     * This surface serves as a buffer attached to a MTLLayer and
      * the layer redirects all painting to the buffer's graphics.
      */
-    public static class CGLLayerSurfaceData extends CGLSurfaceData {
+    public static class MTLLayerSurfaceData extends MTLSurfaceData {
 
-        private CGLLayer layer;
+        private MTLLayer layer;
 
-        public CGLLayerSurfaceData(CGLLayer layer, CGLGraphicsConfig gc,
+        public MTLLayerSurfaceData(MTLLayer layer, MTLGraphicsConfig gc,
                                    int width, int height) {
             super(layer, gc, gc.getColorModel(), FBOBJECT, width, height);
             this.layer = layer;
@@ -287,14 +283,14 @@ public abstract class CGLSurfaceData extends OGLSurfaceData {
      * FLIP_BACKBUFFER, which is then flipped.
      */
     public static class CGLVSyncOffScreenSurfaceData extends
-            CGLOffScreenSurfaceData {
-        private CGLOffScreenSurfaceData flipSurface;
+            MTLOffScreenSurfaceData {
+        private MTLOffScreenSurfaceData flipSurface;
 
         public CGLVSyncOffScreenSurfaceData(CPlatformView pView,
-                CGLGraphicsConfig gc, int width, int height, Image image,
-                ColorModel cm, int type) {
+                                            MTLGraphicsConfig gc, int width, int height, Image image,
+                                            ColorModel cm, int type) {
             super(pView, gc, width, height, image, cm, type);
-            flipSurface = CGLSurfaceData.createData(pView, image,
+            flipSurface = MTLSurfaceData.createData(pView, image,
                     FLIP_BACKBUFFER);
         }
 
@@ -309,11 +305,11 @@ public abstract class CGLSurfaceData extends OGLSurfaceData {
         }
     }
 
-    public static class CGLOffScreenSurfaceData extends CGLSurfaceData {
+    public static class MTLOffScreenSurfaceData extends MTLSurfaceData {
         private Image offscreenImage;
 
-        public CGLOffScreenSurfaceData(CPlatformView pView,
-                                       CGLGraphicsConfig gc, int width, int height, Image image,
+        public MTLOffScreenSurfaceData(CPlatformView pView,
+                                       MTLGraphicsConfig gc, int width, int height, Image image,
                                        ColorModel cm, int type) {
             super(pView, gc, cm, type, width, height);
             offscreenImage = image;
@@ -347,13 +343,13 @@ public abstract class CGLSurfaceData extends OGLSurfaceData {
     // Mac OS X specific APIs for JOGL/Java2D bridge...
 
     // given a surface create and attach GL context, then return it
-    private static native long createCGLContextOnSurface(CGLSurfaceData sd,
-            long sharedContext);
+    private static native long createCGLContextOnSurface(MTLSurfaceData sd,
+                                                         long sharedContext);
 
     public static long createOGLContextOnSurface(Graphics g, long sharedContext) {
         SurfaceData sd = ((SunGraphics2D) g).surfaceData;
-        if ((sd instanceof CGLSurfaceData) == true) {
-            CGLSurfaceData cglsd = (CGLSurfaceData) sd;
+        if ((sd instanceof MTLSurfaceData) == true) {
+            MTLSurfaceData cglsd = (MTLSurfaceData) sd;
             return createCGLContextOnSurface(cglsd, sharedContext);
         } else {
             return 0L;
@@ -361,13 +357,13 @@ public abstract class CGLSurfaceData extends OGLSurfaceData {
     }
 
     // returns whether or not the makeCurrent operation succeeded
-    static native boolean makeCGLContextCurrentOnSurface(CGLSurfaceData sd,
-            long ctx);
+    static native boolean makeCGLContextCurrentOnSurface(MTLSurfaceData sd,
+                                                         long ctx);
 
     public static boolean makeOGLContextCurrentOnSurface(Graphics g, long ctx) {
         SurfaceData sd = ((SunGraphics2D) g).surfaceData;
-        if ((ctx != 0L) && ((sd instanceof CGLSurfaceData) == true)) {
-            CGLSurfaceData cglsd = (CGLSurfaceData) sd;
+        if ((ctx != 0L) && ((sd instanceof MTLSurfaceData) == true)) {
+            MTLSurfaceData cglsd = (MTLSurfaceData) sd;
             return makeCGLContextCurrentOnSurface(cglsd, ctx);
         } else {
             return false;
@@ -385,6 +381,6 @@ public abstract class CGLSurfaceData extends OGLSurfaceData {
 
     public static void dispose(long pData, long pConfigInfo) {
         OGLSurfaceData.dispose(pData, pConfigInfo);
-        CGLGraphicsConfig.deRefPConfigInfo(pConfigInfo);
+        MTLGraphicsConfig.deRefPConfigInfo(pConfigInfo);
     }
 }

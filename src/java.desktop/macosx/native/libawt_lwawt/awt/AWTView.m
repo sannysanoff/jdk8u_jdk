@@ -74,6 +74,7 @@ const int uniformBufferCount = 3;
     id <MTLBuffer> _uniformBuffers[uniformBufferCount];
     id <MTLBuffer> _vertexBuffer;
      int uniformBufferIndex;
+    id<MTLDevice> 			    _device;
 }
 
 @synthesize _dropTarget;
@@ -88,16 +89,16 @@ const int uniformBufferCount = 3;
 {
     AWT_ASSERT_APPKIT_THREAD;
     // Initialize ourselves
-    id<MTLDevice> device = MTLCreateSystemDefaultDevice();
-    self = [super initWithFrame:rect device:device];
+    _device = MTLCreateSystemDefaultDevice();
+    self = [super initWithFrame:rect];
     if (self == nil) return self;
 
-    self.colorPixelFormat = MTLPixelFormatBGRA8Unorm;
-        self.depthStencilPixelFormat = MTLPixelFormatDepth32Float_Stencil8;
+    //self.colorPixelFormat = MTLPixelFormatBGRA8Unorm;
+        //self.depthStencilPixelFormat = MTLPixelFormatDepth32Float_Stencil8;
 
     // Load shaders.
     NSError *error = nil;
-    _library = [self.device newLibraryWithFile: @"/Users/avu/export/jdk8u.git/build/macosx-x86_64-normal-server-release/images/jdk-bundle/jdk-9.0.1.jdk/Contents/Home/lib/shaders.metallib" error:&error];
+    _library = [_device newLibraryWithFile: @"/Users/avu/export/jdk8u.git/build/macosx-x86_64-normal-server-release/images/jdk-bundle/jdk-9.0.1.jdk/Contents/Home/lib/shaders.metallib" error:&error];
     if (!_library) {
             NSLog(@"Failed to load library. error %@", error);
             exit(0);
@@ -109,7 +110,7 @@ const int uniformBufferCount = 3;
         MTLDepthStencilDescriptor *depthDesc = [MTLDepthStencilDescriptor new];
         depthDesc.depthCompareFunction = MTLCompareFunctionLess;
         depthDesc.depthWriteEnabled = YES;
-        _depthState = [self.device newDepthStencilStateWithDescriptor:depthDesc];
+        _depthState = [_device newDepthStencilStateWithDescriptor:depthDesc];
 
     MTLVertexDescriptor *vertDesc = [MTLVertexDescriptor new];
     vertDesc.attributes[VertexAttributePosition].format = MTLVertexFormatFloat3;
@@ -124,14 +125,14 @@ const int uniformBufferCount = 3;
 
 // Create pipeline state.
     MTLRenderPipelineDescriptor *pipelineDesc = [MTLRenderPipelineDescriptor new];
-    pipelineDesc.sampleCount = self.sampleCount;
+    pipelineDesc.sampleCount = 1;
     pipelineDesc.vertexFunction = vertFunc;
     pipelineDesc.fragmentFunction = fragFunc;
     pipelineDesc.vertexDescriptor = vertDesc;
-    pipelineDesc.colorAttachments[0].pixelFormat = self.colorPixelFormat;
-    pipelineDesc.depthAttachmentPixelFormat = self.depthStencilPixelFormat;
-    pipelineDesc.stencilAttachmentPixelFormat = self.depthStencilPixelFormat;
-    _pipelineState = [self.device newRenderPipelineStateWithDescriptor:pipelineDesc error:&error];
+    pipelineDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm;
+//    pipelineDesc.depthAttachmentPixelFormat = self.depthStencilPixelFormat;
+//    pipelineDesc.stencilAttachmentPixelFormat = self.depthStencilPixelFormat;
+    _pipelineState = [_device newRenderPipelineStateWithDescriptor:pipelineDesc error:&error];
     if (!_pipelineState) {
         NSLog(@"Failed to create pipeline state, error %@", error);
         exit(0);
@@ -165,13 +166,13 @@ const int uniformBufferCount = 3;
     verts[2].color[2] = 255;
     verts[2].color[3] = 255;
 
-    _vertexBuffer = [self.device newBufferWithBytes:verts
+    _vertexBuffer = [_device newBufferWithBytes:verts
                                              length:sizeof(verts)
                                             options:
                                                     MTLResourceCPUCacheModeDefaultCache];
     // Create uniform buffers.
     for (int i = 0; i < uniformBufferCount; i++) {
-        _uniformBuffers[i] = [self.device newBufferWithLength:sizeof(struct FrameUniforms)
+        _uniformBuffers[i] = [_device newBufferWithLength:sizeof(struct FrameUniforms)
                                           options:MTLResourceCPUCacheModeWriteCombined];
     }
 
@@ -179,9 +180,9 @@ const int uniformBufferCount = 3;
     uniformBufferIndex = 0;
 
     // Create command queue
-    _commandQueue = [self.device newCommandQueue];
-    self.paused = YES;
-    self.enableSetNeedsDisplay = YES;
+    _commandQueue = [_device newCommandQueue];
+//    self.paused = YES;
+//    self.enableSetNeedsDisplay = YES;
 
     m_cPlatformView = cPlatformView;
     fInputMethodLOCKABLE = NULL;
@@ -610,7 +611,7 @@ const int uniformBufferCount = 3;
 
 - (void) drawRect:(NSRect)dirtyRect {
     AWT_ASSERT_APPKIT_THREAD;
-[[NSColor whiteColor] set];
+/*[[NSColor whiteColor] set];
         NSRectFill( dirtyRect );
    // if (self.currentDrawable) {
      dispatch_semaphore_wait(_semaphore, DISPATCH_TIME_FOREVER);
@@ -659,7 +660,7 @@ const int uniformBufferCount = 3;
         NSRectFill( dirtyRect );
 
     fprintf(stderr, "%f %f \n", dirtyRect.size.width, dirtyRect.size.height);
-
+*/
     JNIEnv *env = [ThreadUtilities getJNIEnv];
     if (env != NULL) {
         /*
