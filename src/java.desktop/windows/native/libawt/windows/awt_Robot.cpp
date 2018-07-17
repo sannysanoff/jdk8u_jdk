@@ -80,9 +80,12 @@ void AwtRobot::MouseMove( jint x, jint y)
                                      (PVOID)newSpeed,
                                      SPIF_SENDCHANGE);
 
-      AwtWin32GraphicsDevice *device = AwtWin32GraphicsDevice::GetDeviceByBounds(RECT_BOUNDS(x, y, 0, 0));
-      x = device == NULL ? x : device->ScaleUpDX(x);
-      y = device == NULL ? y : device->ScaleUpDY(y);
+      int primaryIndex = AwtWin32GraphicsDevice::GetDefaultDeviceIndex();
+      Devices::InstanceAccess devices;
+      AwtWin32GraphicsDevice *device = devices->GetDevice(primaryIndex);
+
+      x = (device == NULL) ? x : device->ScaleUpX(x);
+      y = (device == NULL) ? y : device->ScaleUpY(y);
 
       POINT curPos;
       ::GetCursorPos(&curPos);
@@ -224,16 +227,8 @@ void AwtRobot::GetRGBPixels(jint x, jint y, jint width, jint height, jintArray p
     // copy screen image to offscreen bitmap
     // CAPTUREBLT flag is required to capture WS_EX_LAYERED windows' contents
     // correctly on Win2K/XP
-    if (width == sWidth && height == sHeight) {
-        VERIFY(::BitBlt(hdcMem, 0, 0, width, height, hdcScreen, x, y,
-               SRCCOPY | CAPTUREBLT) != 0);
-    } else {
-        int sX = (device == NULL) ? x : device->ScaleUpDX(x);
-        int sY = (device == NULL) ? y : device->ScaleUpDY(y);
-        VERIFY(::StretchBlt(hdcMem, 0, 0, width, height,
-               hdcScreen, sX, sY, sWidth, sHeight,
-               SRCCOPY | CAPTUREBLT) != 0);
-    }
+    VERIFY(::BitBlt(hdcMem, 0, 0, width, height, hdcScreen, x, y,
+           SRCCOPY | CAPTUREBLT) != 0);
 
     static const int BITS_PER_PIXEL = 32;
     static const int BYTES_PER_PIXEL = BITS_PER_PIXEL/8;

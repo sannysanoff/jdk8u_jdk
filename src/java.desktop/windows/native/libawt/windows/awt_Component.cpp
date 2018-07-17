@@ -5189,9 +5189,7 @@ AwtComponent::SendMouseWheelEvent(jint id, jlong when, jint x, jint y,
     int yAbs = GET_Y_LPARAM(curMousePos);
 
     DTRACE_PRINTLN("creating MWE in JNI");
-    DWORD curMousePos = ::GetMessagePos();
-    int xAbs = GET_X_LPARAM(curMousePos);
-    int yAbs = GET_Y_LPARAM(curMousePos);
+
     jobject mouseWheelEvent = env->NewObject(mouseWheelEventCls,
                                              mouseWheelEventConst,
                                              target,
