@@ -74,10 +74,10 @@ public final class MTLGraphicsConfig extends CGraphicsConfig
     private final Object disposerReferent = new Object();
     private final int maxTextureSize;
 
-    private static native boolean initCGL();
-    private static native long getCGLConfigInfo(int displayID, int visualnum,
+    private static native boolean initMTL();
+    private static native long getMTLConfigInfo(int displayID, int visualnum,
                                                 int swapInterval);
-    private static native int getOGLCapabilities(long configInfo);
+    private static native int getMTLCapabilities(long configInfo);
 
     /**
      * Returns GL_MAX_TEXTURE_SIZE from the shared opengl context. Must be
@@ -90,7 +90,7 @@ public final class MTLGraphicsConfig extends CGraphicsConfig
     private static final HashMap<Long, Integer> pGCRefCounts = new HashMap<>();
 
     static {
-        cglAvailable = initCGL();
+        cglAvailable = initMTL();
     }
 
     private MTLGraphicsConfig(CGraphicsDevice device, int pixfmt,
@@ -151,7 +151,7 @@ public final class MTLGraphicsConfig extends CGraphicsConfig
                     // Java-level context and flush the queue...
                     OGLContext.invalidateCurrentContext();
 
-                    cfginfo = getCGLConfigInfo(device.getCGDisplayID(), pixfmt,
+                    cfginfo = getMTLConfigInfo(device.getCGDisplayID(), pixfmt,
                             kOpenGLSwapInterval);
                     if (cfginfo != 0L) {
                         textureSize = nativeGetMaxTextureSize();
@@ -171,7 +171,7 @@ public final class MTLGraphicsConfig extends CGraphicsConfig
                     return null;
                 }
 
-                int oglCaps = getOGLCapabilities(cfginfo);
+                int oglCaps = getMTLCapabilities(cfginfo);
                 ContextCapabilities caps = new OGLContextCaps(oglCaps, ids[0]);
                 return new MTLGraphicsConfig(
                         device, pixfmt, cfginfo, textureSize, caps);

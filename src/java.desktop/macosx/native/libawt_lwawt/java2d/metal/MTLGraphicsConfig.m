@@ -350,7 +350,7 @@ Java_sun_java2d_metal_MTLGraphicsConfig_getMTLConfigInfo
 @end //GraphicsConfigUtil
 
 JNIEXPORT jint JNICALL
-Java_sun_java2d_opengl_MTLGraphicsConfig_getMTLCapabilities
+Java_sun_java2d_metal_MTLGraphicsConfig_getMTLCapabilities
     (JNIEnv *env, jclass mtlgc, jlong configInfo)
 {
     J2dTraceLn(J2D_TRACE_INFO, "MTLGraphicsConfig_getMTLCapabilities");
