@@ -30,8 +30,8 @@
 #import "MTLSurfaceData.h"
 
 
-extern NSOpenGLPixelFormat *mtlSharedPixelFormat;
-extern NSOpenGLContext *mtlSharedContext;
+extern NSOpenGLPixelFormat *sharedPixelFormat;
+extern NSOpenGLContext *sharedContext;
 
 @implementation MTLLayer
 
@@ -83,12 +83,12 @@ AWT_ASSERT_APPKIT_THREAD;
 }
 
 - (CGLPixelFormatObj)copyCGLPixelFormatForDisplayMask:(uint32_t)mask {
-    return CGLRetainPixelFormat(mtlSharedPixelFormat.CGLPixelFormatObj);
+    return CGLRetainPixelFormat(sharedPixelFormat.CGLPixelFormatObj);
 }
 
 - (CGLContextObj)copyCGLContextForPixelFormat:(CGLPixelFormatObj)pixelFormat {
     CGLContextObj contextObj = NULL;
-    CGLCreateContext(pixelFormat, mtlSharedContext.CGLContextObj, &contextObj);
+    CGLCreateContext(pixelFormat, sharedContext.CGLContextObj, &contextObj);
     return contextObj;
 }
 
@@ -126,8 +126,6 @@ AWT_ASSERT_APPKIT_THREAD;
 
 -(void)drawInCGLContext:(CGLContextObj)glContext pixelFormat:(CGLPixelFormatObj)pixelFormat forLayerTime:(CFTimeInterval)timeInterval displayTime:(const CVTimeStamp *)timeStamp
 {
-fprintf(stderr, "drawInCGLContext\n");
-return;
     AWT_ASSERT_APPKIT_THREAD;
 
     JNIEnv *env = [ThreadUtilities getJNIEnv];

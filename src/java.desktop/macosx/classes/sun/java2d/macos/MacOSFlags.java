@@ -14,7 +14,7 @@ public class MacOSFlags {
 
     static {
         initJavaFlags();
-        // initNativeFlags();
+        initNativeFlags();
     }
 
     private static native boolean initNativeFlags();

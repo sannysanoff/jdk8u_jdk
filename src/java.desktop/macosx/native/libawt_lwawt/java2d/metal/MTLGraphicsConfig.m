@@ -86,8 +86,8 @@ MTLGC_DestroyMTLGraphicsConfig(jlong pConfigInfo)
  * context, which means any texture objects created when this shared context
  * is current will be available to any other context in any other thread.
  */
-NSOpenGLContext *mtlSharedContext = NULL;
-NSOpenGLPixelFormat *mtlSharedPixelFormat = NULL;
+extern NSOpenGLContext *sharedContext;
+extern NSOpenGLPixelFormat *sharedPixelFormat;
 
 /**
  * Attempts to initialize CGL and the core OpenGL library.
@@ -166,7 +166,7 @@ Java_sun_java2d_metal_MTLGraphicsConfig_getMTLConfigInfo
     NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
 
     CGOpenGLDisplayMask glMask = (CGOpenGLDisplayMask)pixfmt;
-    if (mtlSharedContext == NULL) {
+    if (sharedContext == NULL) {
         if (glMask == 0) {
             glMask = CGDisplayIDToOpenGLDisplayMask(displayID);
         }
@@ -184,19 +184,19 @@ Java_sun_java2d_metal_MTLGraphicsConfig_getMTLConfigInfo
             0
         };
 
-        mtlSharedPixelFormat =
+        sharedPixelFormat =
             [[NSOpenGLPixelFormat alloc] initWithAttributes:attrs];
-        if (mtlSharedPixelFormat == nil) {
+        if (sharedPixelFormat == nil) {
             J2dRlsTraceLn(J2D_TRACE_ERROR, "MTLGraphicsConfig_getMTLConfigInfo: shared NSOpenGLPixelFormat is NULL");
             [argValue addObject: [NSNumber numberWithLong: 0L]];
             return;
         }
 
-        mtlSharedContext =
+        sharedContext =
             [[NSOpenGLContext alloc]
-                initWithFormat:mtlSharedPixelFormat
+                initWithFormat:sharedPixelFormat
                 shareContext: NULL];
-        if (mtlSharedContext == nil) {
+        if (sharedContext == nil) {
             J2dRlsTraceLn(J2D_TRACE_ERROR, "MTLGraphicsConfig_getMTLConfigInfo: shared NSOpenGLContext is NULL");
             [argValue addObject: [NSNumber numberWithLong: 0L]];
             return;
@@ -239,8 +239,8 @@ Java_sun_java2d_metal_MTLGraphicsConfig_getMTLConfigInfo
 
     NSOpenGLContext *context =
         [[NSOpenGLContext alloc]
-            initWithFormat: mtlSharedPixelFormat
-            shareContext: mtlSharedContext];
+            initWithFormat: sharedPixelFormat
+            shareContext: sharedContext];
     if (context == nil) {
         J2dRlsTraceLn(J2D_TRACE_ERROR, "MTLGraphicsConfig_getMTLConfigInfo: NSOpenGLContext is NULL");
         [argValue addObject: [NSNumber numberWithLong: 0L]];
@@ -273,7 +273,7 @@ Java_sun_java2d_metal_MTLGraphicsConfig_getMTLConfigInfo
     OGLContext_GetExtensionInfo(env, &caps);
 
     GLint value = 0;
-    [mtlSharedPixelFormat
+    [sharedPixelFormat
         getValues: &value
         forAttribute: NSOpenGLPFADoubleBuffer
         forVirtualScreen: contextVirtualScreen];
@@ -287,12 +287,12 @@ Java_sun_java2d_metal_MTLGraphicsConfig_getMTLConfigInfo
 
     // remove before shipping (?)
 #if 1
-    [mtlSharedPixelFormat
+    [sharedPixelFormat
         getValues: &value
         forAttribute: NSOpenGLPFAAccelerated
         forVirtualScreen: contextVirtualScreen];
     if (value == 0) {
-        [mtlSharedPixelFormat
+        [sharedPixelFormat
             getValues: &value
             forAttribute: NSOpenGLPFARendererID
             forVirtualScreen: contextVirtualScreen];
@@ -340,7 +340,7 @@ Java_sun_java2d_metal_MTLGraphicsConfig_getMTLConfigInfo
     }
     memset(mtlinfo, 0, sizeof(MTLGraphicsConfigInfo));
     mtlinfo->screen = displayID;
-    mtlinfo->pixfmt = mtlSharedPixelFormat;
+    mtlinfo->pixfmt = sharedPixelFormat;
     mtlinfo->context = oglc;
 
   //  [NSOpenGLContext clearCurrentContext];
@@ -373,7 +373,7 @@ Java_sun_java2d_metal_MTLGraphicsConfig_nativeGetMaxTextureSize
     __block int max = 0;
 
     [ThreadUtilities performOnMainThreadWaiting:YES block:^(){
-        [mtlSharedContext makeCurrentContext];
+        [sharedContext makeCurrentContext];
         j2d_glGetIntegerv(GL_MAX_TEXTURE_SIZE, &max);
         [NSOpenGLContext clearCurrentContext];
     }];

@@ -23,8 +23,8 @@
  * questions.
  */
 
-#ifndef CGLSurfaceData_h_Included
-#define CGLSurfaceData_h_Included
+#ifndef MTLSurfaceData_h_Included
+#define MTLSurfaceData_h_Included
 
 #import "MTLSurfaceData.h"
 #import "MTLGraphicsConfig.h"
@@ -35,11 +35,11 @@
  * The CGLSDOps structure contains the CGL-specific information for a given
  * OGLSurfaceData.  It is referenced by the native OGLSDOps structure.
  */
-typedef struct _CGLSDOps {
+typedef struct _MTLSDOps {
     AWTView               *peerData;
     MTLLayer              *layer;
     GLclampf              argb[4]; // background clear color
     MTLGraphicsConfigInfo *configInfo;
-} CGLSDOps;
+} MTLSDOps;
 
 #endif /* CGLSurfaceData_h_Included */

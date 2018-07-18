@@ -404,7 +404,7 @@ Java_sun_java2d_opengl_CGLGraphicsConfig_getCGLConfigInfo
     cglinfo->pixfmt = sharedPixelFormat;
     cglinfo->context = oglc;
 
-  //  [NSOpenGLContext clearCurrentContext];
+    [NSOpenGLContext clearCurrentContext];
     [argValue addObject: [NSNumber numberWithLong:ptr_to_jlong(cglinfo)]];
     [pool drain];
 }

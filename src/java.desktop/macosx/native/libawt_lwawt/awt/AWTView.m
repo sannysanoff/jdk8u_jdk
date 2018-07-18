@@ -37,6 +37,9 @@
 
 #import <JavaNativeFoundation/JavaNativeFoundation.h>
 
+jboolean metalEnabled = JNI_FALSE;
+
+
 const int N = 1;
 static struct Vertex verts[N*3];
 
@@ -90,7 +93,7 @@ const int uniformBufferCount = 3;
     AWT_ASSERT_APPKIT_THREAD;
     // Initialize ourselves
     _device = MTLCreateSystemDefaultDevice();
-    self = [super initWithFrame:rect];
+    self = [super initWithFrame: rect];
     if (self == nil) return self;
 
     //self.colorPixelFormat = MTLPixelFormatBGRA8Unorm;
@@ -654,13 +657,14 @@ const int uniformBufferCount = 3;
         [commandBuffer commit];
         fprintf(stderr, "sssss");
   //  }
-   // [super drawRect:dirtyRect];
 
 [[NSColor whiteColor] setFill];
         NSRectFill( dirtyRect );
 
     fprintf(stderr, "%f %f \n", dirtyRect.size.width, dirtyRect.size.height);
 */
+    [super drawRect:dirtyRect];
+
     JNIEnv *env = [ThreadUtilities getJNIEnv];
     if (env != NULL) {
         /*
@@ -690,11 +694,7 @@ const int uniformBufferCount = 3;
         /*
          }
          */
-
     }
-       [[NSColor whiteColor] setFill];
-                     NSRectFill( dirtyRect );
-
 }
 
 -(BOOL) isCodePointInUnicodeBlockNeedingIMEvent: (unichar) codePoint {
@@ -1643,4 +1643,18 @@ JNIEXPORT jboolean JNICALL Java_sun_lwawt_macosx_CPlatformView_nativeIsViewUnder
     JNF_COCOA_EXIT(env);
     
     return underMouse;
+}
+
+jboolean GetStaticBoolean(JNIEnv *env, jclass fClass, const char *fieldName)
+{
+    jfieldID fieldID = (*env)->GetStaticFieldID(env, fClass, fieldName, "Z");
+    return (*env)->GetStaticBooleanField(env, fClass, fieldID);
+}
+
+JNIEXPORT void JNICALL
+Java_sun_java2d_macos_MacOSFlags_initNativeFlags(JNIEnv *env,
+                                                     jclass flagsClass)
+{
+  metalEnabled = GetStaticBoolean(env, flagsClass, "metalEnabled");
+  fprintf(stderr, "metalEnabled=%d\n", metalEnabled);
 }

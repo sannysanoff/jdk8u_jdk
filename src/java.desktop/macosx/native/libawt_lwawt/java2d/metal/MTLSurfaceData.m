@@ -25,7 +25,7 @@
 
 #import <stdlib.h>
 
-#import "sun_java2d_opengl_CGLSurfaceData.h"
+#import "sun_java2d_metal_MTLSurfaceData.h"
 
 #import "jni_util.h"
 #import "OGLRenderQueue.h"
@@ -75,7 +75,7 @@ JNF_COCOA_EXIT(env);
  * returns JNI_FALSE.
  */
 static jboolean
-CGLSD_MakeCurrentToScratch(JNIEnv *env, OGLContext *oglc)
+MTLSD_MakeCurrentToScratch(JNIEnv *env, OGLContext *oglc)
 {
     J2dTraceLn(J2D_TRACE_INFO, "CGLSD_MakeCurrentToScratch");
 
@@ -116,7 +116,7 @@ MTLSD_DestroyOGLSurface(JNIEnv *env, OGLSDOps *oglsdo)
 
 JNF_COCOA_ENTER(env);
 
-    CGLSDOps *cglsdo = (CGLSDOps *)oglsdo->privOps;
+    MTLSDOps *cglsdo = (MTLSDOps *)oglsdo->privOps;
     if (oglsdo->drawableType == OGLSD_WINDOW) {
         // detach the NSView from the NSOpenGLContext
         MTLGraphicsConfigInfo *mtlInfo = cglsdo->configInfo;
@@ -146,7 +146,7 @@ MTLSD_GetNativeConfigInfo(OGLSDOps *oglsdo)
         return 0L;
     }
 
-    CGLSDOps *cglsdo = (CGLSDOps *)oglsdo->privOps;
+    MTLSDOps *cglsdo = (MTLSDOps *)oglsdo->privOps;
     if (cglsdo == NULL) {
         J2dRlsTraceLn(J2D_TRACE_ERROR, "OGLSD_GetNativeConfigInfo: cgl ops are null");
         return 0L;
@@ -192,7 +192,7 @@ JNF_COCOA_ENTER(env);
             j2d_glFlush();
         }
 
-        if (!CGLSD_MakeCurrentToScratch(env, oglc)) {
+        if (!MTLSD_MakeCurrentToScratch(env, oglc)) {
             return NULL;
         }
     // make sure our context is current
@@ -223,7 +223,7 @@ MTLSD_MakeOGLContextCurrent(JNIEnv *env, OGLSDOps *srcOps, OGLSDOps *dstOps)
 {
     J2dTraceLn(J2D_TRACE_INFO, "OGLSD_MakeOGLContextCurrent");
 
-    CGLSDOps *dstCGLOps = (CGLSDOps *)dstOps->privOps;
+    MTLSDOps *dstCGLOps = (MTLSDOps *)dstOps->privOps;
 
     J2dTraceLn4(J2D_TRACE_VERBOSE, "  src: %d %p dst: %d %p", srcOps->drawableType, srcOps, dstOps->drawableType, dstOps);
 
@@ -246,7 +246,7 @@ MTLSD_MakeOGLContextCurrent(JNIEnv *env, OGLSDOps *srcOps, OGLSDOps *dstOps)
         // already current to some drawable, we will make it current to
         // its scratch surface)
         if (oglc != currentContext) {
-            if (!CGLSD_MakeCurrentToScratch(env, oglc)) {
+            if (!MTLSD_MakeCurrentToScratch(env, oglc)) {
                 return NULL;
             }
         }
@@ -263,7 +263,7 @@ MTLSD_MakeOGLContextCurrent(JNIEnv *env, OGLSDOps *srcOps, OGLSDOps *dstOps)
 
 JNF_COCOA_ENTER(env);
 
-    CGLSDOps *cglsdo = (CGLSDOps *)dstOps->privOps;
+    MTLSDOps *cglsdo = (MTLSDOps *)dstOps->privOps;
     NSView *nsView = (NSView *)cglsdo->peerData;
 
     if ([ctxinfo->context view] != nsView) {
@@ -298,7 +298,7 @@ MTLSD_InitOGLWindow(JNIEnv *env, OGLSDOps *oglsdo)
         return JNI_FALSE;
     }
 
-    CGLSDOps *cglsdo = (CGLSDOps *)oglsdo->privOps;
+    MTLSDOps *cglsdo = (MTLSDOps *)oglsdo->privOps;
     if (cglsdo == NULL) {
         J2dRlsTraceLn(J2D_TRACE_ERROR, "OGLSD_InitOGLWindow: cgl ops are null");
         return JNI_FALSE;
@@ -338,7 +338,7 @@ MTLSD_Flush(JNIEnv *env)
 {
     OGLSDOps *dstOps = OGLRenderQueue_GetCurrentDestination();
     if (dstOps != NULL) {
-        CGLSDOps *dstCGLOps = (CGLSDOps *)dstOps->privOps;
+        MTLSDOps *dstCGLOps = (MTLSDOps *)dstOps->privOps;
         MTLLayer *layer = (MTLLayer*)dstCGLOps->layer;
         if (layer != NULL) {
             [JNFRunLoop performOnMainThreadWaiting:NO withBlock:^(){
@@ -379,7 +379,7 @@ void
 MTLSD_Dispose(JNIEnv *env, SurfaceDataOps *ops)
 {
     OGLSDOps *oglsdo = (OGLSDOps *)ops;
-    jlong pConfigInfo = OGLSD_GetNativeConfigInfo(oglsdo);
+    jlong pConfigInfo = MTLSD_GetNativeConfigInfo(oglsdo);
     JNU_CallStaticMethodByName(env, NULL, "sun/java2d/opengl/CGLSurfaceData",
                                "dispose", "(JJ)V",
                                ptr_to_jlong(ops), pConfigInfo);
@@ -398,13 +398,13 @@ Java_sun_java2d_metal_MTLSurfaceData_initOps
 
     OGLSDOps *oglsdo = (OGLSDOps *)
         SurfaceData_InitOps(env, cglsd, sizeof(OGLSDOps));
-    CGLSDOps *cglsdo = (CGLSDOps *)malloc(sizeof(CGLSDOps));
-    if (cglsdo == NULL) {
+    MTLSDOps *mtlsdo = (MTLSDOps *)malloc(sizeof(MTLSDOps));
+    if (mtlsdo == NULL) {
         JNU_ThrowOutOfMemoryError(env, "creating native cgl ops");
         return;
     }
 
-    oglsdo->privOps = cglsdo;
+    oglsdo->privOps = mtlsdo;
 
     oglsdo->sdOps.Lock               = OGLSD_Lock;
     oglsdo->sdOps.GetRasInfo         = OGLSD_GetRasInfo;
@@ -418,12 +418,12 @@ Java_sun_java2d_metal_MTLSurfaceData_initOps
     oglsdo->yOffset = yoff;
     oglsdo->isOpaque = isOpaque;
 
-    cglsdo->peerData = (AWTView *)jlong_to_ptr(pPeerData);
-    cglsdo->layer = (MTLLayer *)jlong_to_ptr(layerPtr);
-    cglsdo->configInfo = (MTLGraphicsConfigInfo *)jlong_to_ptr(pConfigInfo);
+    mtlsdo->peerData = (AWTView *)jlong_to_ptr(pPeerData);
+    mtlsdo->layer = (MTLLayer *)jlong_to_ptr(layerPtr);
+    mtlsdo->configInfo = (MTLGraphicsConfigInfo *)jlong_to_ptr(pConfigInfo);
 
-    if (cglsdo->configInfo == NULL) {
-        free(cglsdo);
+    if (mtlsdo->configInfo == NULL) {
+        free(mtlsdo);
         JNU_ThrowNullPointerException(env, "Config info is null in initOps");
     }
 }
@@ -435,7 +435,7 @@ Java_sun_java2d_metal_MTLSurfaceData_clearWindow
     J2dTraceLn(J2D_TRACE_INFO, "CGLSurfaceData_clearWindow");
 
     OGLSDOps *oglsdo = (OGLSDOps*) SurfaceData_GetOps(env, cglsd);
-    CGLSDOps *cglsdo = (CGLSDOps*) oglsdo->privOps;
+    MTLSDOps *cglsdo = (MTLSDOps*) oglsdo->privOps;
 
     cglsdo->peerData = NULL;
     cglsdo->layer = NULL;
@@ -466,7 +466,7 @@ Java_sun_java2d_metal_MTLSurfaceData_validate
 
         // we have to explicitly tell the NSOpenGLContext that its target
         // drawable has changed size
-        CGLSDOps *cglsdo = (CGLSDOps *)oglsdo->privOps;
+        MTLSDOps *cglsdo = (MTLSDOps *)oglsdo->privOps;
         OGLContext *oglc = cglsdo->configInfo->context;
         MTLCtxInfo *ctxinfo = (MTLCtxInfo *)oglc->ctxInfo;
 
