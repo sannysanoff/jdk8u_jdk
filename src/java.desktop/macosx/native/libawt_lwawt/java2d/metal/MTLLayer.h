@@ -25,10 +25,13 @@
 
 #ifndef MTLLayer_h_Included
 #define MTLLayer_h_Included
+#import <Metal/Metal.h>
+#import <MetalKit/MetalKit.h>
+#import "common.h"
 
 #import <JavaNativeFoundation/JavaNativeFoundation.h>
 
-@interface MTLLayer : CAOpenGLLayer
+@interface MTLLayer : CAMetalLayer
 {
 @private
     JNFWeakJObjectWrapper *javaLayer;
@@ -54,6 +57,7 @@
 
 - (id) initWithJavaLayer:(JNFWeakJObjectWrapper *)javaLayer;
 - (void) blitTexture;
+- (void) draw;
 @end
 
 #endif /* CGLLayer_h_Included */

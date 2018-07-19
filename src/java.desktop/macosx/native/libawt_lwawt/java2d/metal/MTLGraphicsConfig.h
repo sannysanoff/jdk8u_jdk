@@ -23,8 +23,8 @@
  * questions.
  */
 
-#ifndef CGLGraphicsConfig_h_Included
-#define CGLGraphicsConfig_h_Included
+#ifndef MTLGraphicsConfig_h_Included
+#define MTLGraphicsConfig_h_Included
 
 #import "jni.h"
 #import "J2D_GL/gl.h"
@@ -114,4 +114,4 @@ typedef struct _MTLCtxInfo {
 #endif
 } MTLCtxInfo;
 
-#endif /* CGLGraphicsConfig_h_Included */
+#endif /* MTLGraphicsConfig_h_Included */

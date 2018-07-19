@@ -33,7 +33,22 @@
 extern NSOpenGLPixelFormat *sharedPixelFormat;
 extern NSOpenGLContext *sharedContext;
 
-@implementation MTLLayer
+const int N = 1;
+static struct Vertex verts[N*3];
+
+@implementation MTLLayer {
+@public
+    dispatch_semaphore_t _semaphore;
+    id<MTLCommandQueue> _commandQueue;
+    id<MTLRenderPipelineState> _pipelineState;
+    id<MTLBuffer> _vertexBuffer;
+    id<CAMetalDrawable> _currentDrawable;
+    BOOL _layerSizeDidUpdate;
+    id<MTLLibrary> _library;
+    id<MTLDevice> 			    _device;
+    id <MTLBuffer> _uniformBuffer;
+    int uniformBufferIndex;
+}
 
 @synthesize javaLayer;
 @synthesize textureID;
@@ -50,12 +65,7 @@ AWT_ASSERT_APPKIT_THREAD;
 
     self.javaLayer = layer;
 
-    // NOTE: async=YES means that the layer is re-cached periodically
-    self.asynchronous = FALSE;
     self.contentsGravity = kCAGravityTopLeft;
-    //Layer backed view
-    //self.needsDisplayOnBoundsChange = YES;
-    //self.autoresizingMask = kCALayerWidthSizable | kCALayerHeightSizable;
 
     //Disable CALayer's default animation
     NSMutableDictionary * actions = [[NSMutableDictionary alloc] initWithObjectsAndKeys:
@@ -74,6 +84,89 @@ AWT_ASSERT_APPKIT_THREAD;
     textureID = 0; // texture will be created by rendering pipe
     target = 0;
 
+    _device = MTLCreateSystemDefaultDevice();
+    self.device          = _device;
+    NSError *error = nil;
+    _library = [_device newLibraryWithFile: @"/Users/avu/export/jdk8u.git/build/macosx-x86_64-normal-server-release/images/jdk-bundle/jdk-9.0.1.jdk/Contents/Home/lib/shaders.metallib" error:&error];
+    if (!_library) {
+        NSLog(@"Failed to load library. error %@", error);
+        exit(0);
+    }
+    id <MTLFunction> vertFunc = [_library newFunctionWithName:@"vert"];
+    id <MTLFunction> fragFunc = [_library newFunctionWithName:@"frag"];
+
+    // Create depth state.
+    MTLDepthStencilDescriptor *depthDesc = [MTLDepthStencilDescriptor new];
+    depthDesc.depthCompareFunction = MTLCompareFunctionLess;
+    depthDesc.depthWriteEnabled = YES;
+
+    MTLVertexDescriptor *vertDesc = [MTLVertexDescriptor new];
+    vertDesc.attributes[VertexAttributePosition].format = MTLVertexFormatFloat3;
+    vertDesc.attributes[VertexAttributePosition].offset = 0;
+    vertDesc.attributes[VertexAttributePosition].bufferIndex = MeshVertexBuffer;
+    vertDesc.attributes[VertexAttributeColor].format = MTLVertexFormatUChar4;
+    vertDesc.attributes[VertexAttributeColor].offset = 3*sizeof(float);
+    vertDesc.attributes[VertexAttributeColor].bufferIndex = MeshVertexBuffer;
+    vertDesc.layouts[MeshVertexBuffer].stride = sizeof(struct Vertex);
+    vertDesc.layouts[MeshVertexBuffer].stepRate = 1;
+    vertDesc.layouts[MeshVertexBuffer].stepFunction = MTLVertexStepFunctionPerVertex;
+
+    // Create pipeline state.
+    MTLRenderPipelineDescriptor *pipelineDesc = [MTLRenderPipelineDescriptor new];
+    pipelineDesc.sampleCount = 1;
+    pipelineDesc.vertexFunction = vertFunc;
+    pipelineDesc.fragmentFunction = fragFunc;
+    pipelineDesc.vertexDescriptor = vertDesc;
+    pipelineDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm;
+//    pipelineDesc.depthAttachmentPixelFormat = self.depthStencilPixelFormat;
+//    pipelineDesc.stencilAttachmentPixelFormat = self.depthStencilPixelFormat;
+    _pipelineState = [_device newRenderPipelineStateWithDescriptor:pipelineDesc error:&error];
+    if (!_pipelineState) {
+        NSLog(@"Failed to create pipeline state, error %@", error);
+        exit(0);
+    }
+
+
+    verts[0].position[0] = 0;
+    verts[0].position[1] = 0;
+    verts[0].position[2] = 0;
+
+    verts[1].position[0] = 1;
+    verts[1].position[1] = 0;
+    verts[1].position[2] = 0;
+
+    verts[2].position[0] = 1;
+    verts[2].position[1] = 1;
+    verts[2].position[2] = 0;
+
+    verts[0].color[0] = 255;
+    verts[0].color[1] = 0;
+    verts[0].color[2] = 255;
+    verts[0].color[3] = 255;
+
+    verts[1].color[0] = 255;
+    verts[1].color[1] = 255;
+    verts[1].color[2] = 0;
+    verts[1].color[3] = 255;
+
+    verts[2].color[0] = 255;
+    verts[2].color[1] = 255;
+    verts[2].color[2] = 255;
+    verts[2].color[3] = 0;
+
+    _vertexBuffer = [_device newBufferWithBytes:verts
+                                             length:sizeof(verts)
+                                            options:
+                                                    MTLResourceCPUCacheModeDefaultCache];
+
+    _uniformBuffer = [_device newBufferWithLength:sizeof(struct FrameUniforms)
+                                          options:MTLResourceCPUCacheModeWriteCombined];
+
+   _semaphore = dispatch_semaphore_create(2);
+    uniformBufferIndex = 0;
+
+    // Create command queue
+    _commandQueue = [_device newCommandQueue];
     return self;
 }
 
@@ -124,8 +217,64 @@ AWT_ASSERT_APPKIT_THREAD;
     return textureID == 0 ? NO : YES;
 }
 
--(void)drawInCGLContext:(CGLContextObj)glContext pixelFormat:(CGLPixelFormatObj)pixelFormat forLayerTime:(CFTimeInterval)timeInterval displayTime:(const CVTimeStamp *)timeStamp
+-(void)draw
 {
+    dispatch_semaphore_wait(_semaphore, DISPATCH_TIME_FOREVER);
+    if (!_currentDrawable) {
+        _currentDrawable = [self nextDrawable];
+    }
+
+    if (!_currentDrawable) {
+            fprintf(stderr, "ERROR: Failed to get a valid drawable.\n");
+    } else {
+        vector_float4 X = { 1, 0, 0, 0 };
+        vector_float4 Y = { 0, 1, 0, 0 };
+        vector_float4 Z = { 0, 0, 1, 0 };
+        vector_float4 W = { 0, 0, 0, 1 };
+
+        matrix_float4x4 rot = { X, Y, Z, W };
+
+        struct FrameUniforms *uniforms = (struct FrameUniforms *) [_uniformBuffer contents];
+        uniforms->projectionViewModel = rot;
+
+        // Create a command buffer.
+        id <MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
+
+        // Encode render command.
+          MTLRenderPassDescriptor*  _renderPassDesc = [MTLRenderPassDescriptor renderPassDescriptor];
+
+        if (_renderPassDesc) {
+            MTLRenderPassColorAttachmentDescriptor *colorAttachment = _renderPassDesc.colorAttachments[0];
+            colorAttachment.texture = _currentDrawable.texture;
+            colorAttachment.loadAction = MTLLoadActionClear;
+            colorAttachment.clearColor = MTLClearColorMake(0.0f, 0.0f, 0.0f, 1.0f);
+
+            colorAttachment.storeAction = MTLStoreActionStore;
+            id <MTLRenderCommandEncoder> encoder =
+                [commandBuffer renderCommandEncoderWithDescriptor:_renderPassDesc];
+            MTLViewport vp = {0, 0, self.drawableSize.width, self.drawableSize.height, 0, 1};
+            //fprintf(stderr, "%f %f \n", self.drawableSize.width, self.drawableSize.height);
+            [encoder setViewport:vp];
+            [encoder setRenderPipelineState:_pipelineState];
+            [encoder setVertexBuffer:_uniformBuffer
+                          offset:0 atIndex:FrameUniformBuffer];
+
+            [encoder setVertexBuffer:_vertexBuffer offset:0 atIndex:MeshVertexBuffer];
+            [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:N*3];
+            [encoder endEncoding];
+
+
+            // Set callback for semaphore.
+            __block dispatch_semaphore_t semaphore = _semaphore;
+            [commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> buffer) {
+                dispatch_semaphore_signal(semaphore);
+            }];
+            [commandBuffer presentDrawable:_currentDrawable];
+            [commandBuffer commit];
+        }
+    }
+    _currentDrawable = nil;
+/*
     AWT_ASSERT_APPKIT_THREAD;
 
     JNIEnv *env = [ThreadUtilities getJNIEnv];
@@ -150,9 +299,10 @@ AWT_ASSERT_APPKIT_THREAD;
     (*env)->DeleteLocalRef(env, javaLayerLocalRef);
 
     // Call super to finalize the drawing. By default all it does is call glFlush().
-    [super drawInCGLContext:glContext pixelFormat:pixelFormat forLayerTime:timeInterval displayTime:timeStamp];
+//    [super drawInCGLContext:glContext pixelFormat:pixelFormat forLayerTime:timeInterval displayTime:timeStamp];
 
     CGLSetCurrentContext(NULL);
+    */
 }
 
 @end
@@ -206,6 +356,7 @@ JNIEXPORT void JNICALL
 Java_sun_java2d_metal_MTLLayer_blitTexture
 (JNIEnv *env, jclass cls, jlong layerPtr)
 {
+    fprintf(stderr, "Blit!!!\n");
     MTLLayer *layer = jlong_to_ptr(layerPtr);
 
     [layer blitTexture];
