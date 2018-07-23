@@ -27,7 +27,6 @@ package sun.java2d.metal;
 
 import sun.java2d.SunGraphics2D;
 import sun.java2d.SurfaceData;
-import sun.java2d.opengl.OGLRenderQueue;
 import sun.java2d.opengl.OGLSurfaceData;
 import sun.lwawt.macosx.CPlatformView;
 
@@ -202,14 +201,12 @@ public abstract class MTLSurfaceData extends MTLSurfaceDataBase {
         }
 
         public void validate() {
-            OGLRenderQueue rq = OGLRenderQueue.getInstance();
+            MTLRenderQueue rq = MTLRenderQueue.getInstance();
             rq.lock();
             try {
-                rq.flushAndInvokeNow(new Runnable() {
-                    public void run() {
-                        Rectangle peerBounds = pView.getBounds();
-                        validate(0, 0, peerBounds.width, peerBounds.height, pView.isOpaque());
-                    }
+                rq.flushAndInvokeNow(() -> {
+                    Rectangle peerBounds = pView.getBounds();
+                    validate(0, 0, peerBounds.width, peerBounds.height, pView.isOpaque());
                 });
             } finally {
                 rq.unlock();

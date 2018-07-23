@@ -33,11 +33,6 @@ import sun.java2d.Disposer;
 import sun.java2d.DisposerRecord;
 import sun.java2d.Surface;
 import sun.java2d.SurfaceData;
-import sun.java2d.opengl.OGLContext;
-import sun.java2d.opengl.OGLContext.OGLContextCaps;
-import sun.java2d.opengl.OGLGraphicsConfig;
-import sun.java2d.opengl.OGLRenderQueue;
-import sun.java2d.opengl.OGLSurfaceData;
 import sun.java2d.pipe.hw.AccelSurface;
 import sun.java2d.pipe.hw.AccelTypedVolatileImage;
 import sun.java2d.pipe.hw.ContextCapabilities;
@@ -120,7 +115,7 @@ public final class MTLGraphicsConfig extends CGraphicsConfig
         return MTLSurfaceData.createData(this, w, h,
                                          getColorModel(transparency),
                                          null,
-                                         OGLSurfaceData.TEXTURE);
+                                         MTLSurfaceData.TEXTURE);
     }
 
     public static MTLGraphicsConfig getConfig(CGraphicsDevice device,
@@ -143,13 +138,13 @@ public final class MTLGraphicsConfig extends CGraphicsConfig
                 long cfginfo = 0;
                 int textureSize = 0;
                 final String ids[] = new String[1];
-                OGLRenderQueue rq = OGLRenderQueue.getInstance();
+                MTLRenderQueue rq = MTLRenderQueue.getInstance();
                 rq.lock();
                 try {
                     // getCGLConfigInfo() creates and destroys temporary
                     // surfaces/contexts, so we should first invalidate the current
                     // Java-level context and flush the queue...
-                    OGLContext.invalidateCurrentContext();
+                    MTLContext.invalidateCurrentContext();
 
                     cfginfo = getMTLConfigInfo(device.getCGDisplayID(), pixfmt,
                             kOpenGLSwapInterval);
@@ -159,9 +154,9 @@ public final class MTLGraphicsConfig extends CGraphicsConfig
                         // size. Half should be safe enough.
                         // Explicitly not support a texture more than 2^14, see 8010999.
                         textureSize = textureSize <= 16384 ? textureSize / 2 : 8192;
-                        OGLContext.setScratchSurface(cfginfo);
+                        MTLContext.setScratchSurface(cfginfo);
                         rq.flushAndInvokeNow(() -> {
-                            ids[0] = OGLContext.getOGLIdString();
+                            ids[0] = MTLContext.getMTLIdString();
                         });
                     }
                 } finally {
@@ -172,7 +167,7 @@ public final class MTLGraphicsConfig extends CGraphicsConfig
                 }
 
                 int oglCaps = getMTLCapabilities(cfginfo);
-                ContextCapabilities caps = new OGLContextCaps(oglCaps, ids[0]);
+                ContextCapabilities caps = new MTLContext.MTLContextCaps(oglCaps, ids[0]);
                 return new MTLGraphicsConfig(
                         device, pixfmt, cfginfo, textureSize, caps);
             }
@@ -205,7 +200,7 @@ public final class MTLGraphicsConfig extends CGraphicsConfig
                 count--;
                 pGCRefCounts.put(pConfigInfo, count);
                 if (count == 0) {
-                    OGLRenderQueue.disposeGraphicsConfig(pConfigInfo);
+                    MTLRenderQueue.disposeGraphicsConfig(pConfigInfo);
                     pGCRefCounts.remove(pConfigInfo);
                 }
             }
@@ -293,10 +288,10 @@ public final class MTLGraphicsConfig extends CGraphicsConfig
         // the context could hold a reference to a MTLSurfaceData, which in
         // turn has a reference back to this MTLGraphicsConfig, so in order
         // for this instance to be disposed we need to break the connection
-        OGLRenderQueue rq = OGLRenderQueue.getInstance();
+        MTLRenderQueue rq = MTLRenderQueue.getInstance();
         rq.lock();
         try {
-            OGLContext.invalidateCurrentContext();
+            MTLContext.invalidateCurrentContext();
         } finally {
             rq.unlock();
         }

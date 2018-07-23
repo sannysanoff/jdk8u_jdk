@@ -28,7 +28,6 @@ package sun.java2d.metal;
 import sun.awt.CGraphicsConfig;
 import sun.java2d.NullSurfaceData;
 import sun.java2d.SurfaceData;
-import sun.java2d.opengl.OGLRenderQueue;
 import sun.lwawt.LWWindowPeer;
 import sun.lwawt.macosx.CFRetainedResource;
 
@@ -102,7 +101,7 @@ public class MTLLayer extends CFRetainedResource {
     }
 
     public void validate(final MTLSurfaceData cglsd) {
-        OGLRenderQueue rq = OGLRenderQueue.getInstance();
+        MTLRenderQueue rq = MTLRenderQueue.getInstance();
         rq.lock();
         try {
             execute(ptr -> validate(ptr, cglsd));
@@ -132,7 +131,7 @@ public class MTLLayer extends CFRetainedResource {
     private void drawInCGLContext() {
         // tell the flusher thread not to update the intermediate buffer
         // until we are done blitting from it
-        OGLRenderQueue rq = OGLRenderQueue.getInstance();
+        MTLRenderQueue rq = MTLRenderQueue.getInstance();
         rq.lock();
         try {
             execute(ptr -> blitTexture(ptr));

@@ -46,16 +46,16 @@ final class MTLBlitLoops {
 
     static void register() {
         Blit blitIntArgbPreToSurface =
-            new OGLSwToSurfaceBlit(SurfaceType.IntArgbPre,
+            new MTLSwToSurfaceBlit(SurfaceType.IntArgbPre,
                                    MTLSurfaceDataBase.PF_INT_ARGB_PRE);
         Blit blitIntArgbPreToTexture =
-            new OGLSwToTextureBlit(SurfaceType.IntArgbPre,
+            new MTLSwToTextureBlit(SurfaceType.IntArgbPre,
                                    MTLSurfaceDataBase.PF_INT_ARGB_PRE);
         TransformBlit transformBlitIntArgbPreToSurface =
-            new OGLSwToSurfaceTransform(SurfaceType.IntArgbPre,
+            new MTLSwToSurfaceTransform(SurfaceType.IntArgbPre,
                                         MTLSurfaceDataBase.PF_INT_ARGB_PRE);
-        OGLSurfaceToSwBlit blitSurfaceToIntArgbPre =
-            new OGLSurfaceToSwBlit(SurfaceType.IntArgbPre,
+        MTLSurfaceToSwBlit blitSurfaceToIntArgbPre =
+            new MTLSurfaceToSwBlit(SurfaceType.IntArgbPre,
                                    MTLSurfaceDataBase.PF_INT_ARGB_PRE);
 
         GraphicsPrimitive[] primitives = {
@@ -70,41 +70,41 @@ final class MTLBlitLoops {
             new OGLRTTSurfaceToSurfaceTransform(),
 
             // surface->sw ops
-            new OGLSurfaceToSwBlit(SurfaceType.IntArgb,
+            new MTLSurfaceToSwBlit(SurfaceType.IntArgb,
                                    MTLSurfaceDataBase.PF_INT_ARGB),
             blitSurfaceToIntArgbPre,
 
             // sw->surface ops
             blitIntArgbPreToSurface,
-            new OGLSwToSurfaceBlit(SurfaceType.IntRgb,
+            new MTLSwToSurfaceBlit(SurfaceType.IntRgb,
                                    MTLSurfaceDataBase.PF_INT_RGB),
-            new OGLSwToSurfaceBlit(SurfaceType.IntRgbx,
+            new MTLSwToSurfaceBlit(SurfaceType.IntRgbx,
                                    MTLSurfaceDataBase.PF_INT_RGBX),
-            new OGLSwToSurfaceBlit(SurfaceType.IntBgr,
+            new MTLSwToSurfaceBlit(SurfaceType.IntBgr,
                                    MTLSurfaceDataBase.PF_INT_BGR),
-            new OGLSwToSurfaceBlit(SurfaceType.IntBgrx,
+            new MTLSwToSurfaceBlit(SurfaceType.IntBgrx,
                                    MTLSurfaceDataBase.PF_INT_BGRX),
-            new OGLSwToSurfaceBlit(SurfaceType.ThreeByteBgr,
+            new MTLSwToSurfaceBlit(SurfaceType.ThreeByteBgr,
                                    MTLSurfaceDataBase.PF_3BYTE_BGR),
-            new OGLSwToSurfaceBlit(SurfaceType.Ushort565Rgb,
+            new MTLSwToSurfaceBlit(SurfaceType.Ushort565Rgb,
                                    MTLSurfaceDataBase.PF_USHORT_565_RGB),
-            new OGLSwToSurfaceBlit(SurfaceType.Ushort555Rgb,
+            new MTLSwToSurfaceBlit(SurfaceType.Ushort555Rgb,
                                    MTLSurfaceDataBase.PF_USHORT_555_RGB),
-            new OGLSwToSurfaceBlit(SurfaceType.Ushort555Rgbx,
+            new MTLSwToSurfaceBlit(SurfaceType.Ushort555Rgbx,
                                    MTLSurfaceDataBase.PF_USHORT_555_RGBX),
-            new OGLSwToSurfaceBlit(SurfaceType.ByteGray,
+            new MTLSwToSurfaceBlit(SurfaceType.ByteGray,
                                    MTLSurfaceDataBase.PF_BYTE_GRAY),
-            new OGLSwToSurfaceBlit(SurfaceType.UshortGray,
+            new MTLSwToSurfaceBlit(SurfaceType.UshortGray,
                                    MTLSurfaceDataBase.PF_USHORT_GRAY),
-            new OGLGeneralBlit(MTLSurfaceDataBase.OpenGLSurface,
+            new MTLGeneralBlit(MTLSurfaceDataBase.OpenGLSurface,
                                CompositeType.AnyAlpha,
                                blitIntArgbPreToSurface),
 
-            new OGLAnyCompositeBlit(MTLSurfaceDataBase.OpenGLSurface,
+            new MTLAnyCompositeBlit(MTLSurfaceDataBase.OpenGLSurface,
                                     blitSurfaceToIntArgbPre,
                                     blitSurfaceToIntArgbPre,
                                     blitIntArgbPreToSurface),
-            new OGLAnyCompositeBlit(SurfaceType.Any,
+            new MTLAnyCompositeBlit(SurfaceType.Any,
                                     null,
                                     blitSurfaceToIntArgbPre,
                                     blitIntArgbPreToSurface),
@@ -132,58 +132,58 @@ final class MTLBlitLoops {
             new OGLSwToSurfaceScale(SurfaceType.IntArgbPre,
                                     MTLSurfaceDataBase.PF_INT_ARGB_PRE),
 
-            new OGLSwToSurfaceTransform(SurfaceType.IntRgb,
+            new MTLSwToSurfaceTransform(SurfaceType.IntRgb,
                                         MTLSurfaceDataBase.PF_INT_RGB),
-            new OGLSwToSurfaceTransform(SurfaceType.IntRgbx,
+            new MTLSwToSurfaceTransform(SurfaceType.IntRgbx,
                                         MTLSurfaceDataBase.PF_INT_RGBX),
-            new OGLSwToSurfaceTransform(SurfaceType.IntBgr,
+            new MTLSwToSurfaceTransform(SurfaceType.IntBgr,
                                         MTLSurfaceDataBase.PF_INT_BGR),
-            new OGLSwToSurfaceTransform(SurfaceType.IntBgrx,
+            new MTLSwToSurfaceTransform(SurfaceType.IntBgrx,
                                         MTLSurfaceDataBase.PF_INT_BGRX),
-            new OGLSwToSurfaceTransform(SurfaceType.ThreeByteBgr,
+            new MTLSwToSurfaceTransform(SurfaceType.ThreeByteBgr,
                                         MTLSurfaceDataBase.PF_3BYTE_BGR),
-            new OGLSwToSurfaceTransform(SurfaceType.Ushort565Rgb,
+            new MTLSwToSurfaceTransform(SurfaceType.Ushort565Rgb,
                                         MTLSurfaceDataBase.PF_USHORT_565_RGB),
-            new OGLSwToSurfaceTransform(SurfaceType.Ushort555Rgb,
+            new MTLSwToSurfaceTransform(SurfaceType.Ushort555Rgb,
                                         MTLSurfaceDataBase.PF_USHORT_555_RGB),
-            new OGLSwToSurfaceTransform(SurfaceType.Ushort555Rgbx,
+            new MTLSwToSurfaceTransform(SurfaceType.Ushort555Rgbx,
                                         MTLSurfaceDataBase.PF_USHORT_555_RGBX),
-            new OGLSwToSurfaceTransform(SurfaceType.ByteGray,
+            new MTLSwToSurfaceTransform(SurfaceType.ByteGray,
                                         MTLSurfaceDataBase.PF_BYTE_GRAY),
-            new OGLSwToSurfaceTransform(SurfaceType.UshortGray,
+            new MTLSwToSurfaceTransform(SurfaceType.UshortGray,
                                         MTLSurfaceDataBase.PF_USHORT_GRAY),
             transformBlitIntArgbPreToSurface,
 
-            new OGLGeneralTransformedBlit(transformBlitIntArgbPreToSurface),
+            new MTLGeneralTransformedBlit(transformBlitIntArgbPreToSurface),
 
             // texture->surface ops
-            new OGLTextureToSurfaceBlit(),
-            new OGLTextureToSurfaceScale(),
-            new OGLTextureToSurfaceTransform(),
+            new MTLTextureToSurfaceBlit(),
+            new MTLTextureToSurfaceScale(),
+            new MTLTextureToSurfaceTransform(),
 
             // sw->texture ops
             blitIntArgbPreToTexture,
-            new OGLSwToTextureBlit(SurfaceType.IntRgb,
+            new MTLSwToTextureBlit(SurfaceType.IntRgb,
                                    MTLSurfaceDataBase.PF_INT_RGB),
-            new OGLSwToTextureBlit(SurfaceType.IntRgbx,
+            new MTLSwToTextureBlit(SurfaceType.IntRgbx,
                                    MTLSurfaceDataBase.PF_INT_RGBX),
-            new OGLSwToTextureBlit(SurfaceType.IntBgr,
+            new MTLSwToTextureBlit(SurfaceType.IntBgr,
                                    MTLSurfaceDataBase.PF_INT_BGR),
-            new OGLSwToTextureBlit(SurfaceType.IntBgrx,
+            new MTLSwToTextureBlit(SurfaceType.IntBgrx,
                                    MTLSurfaceDataBase.PF_INT_BGRX),
-            new OGLSwToTextureBlit(SurfaceType.ThreeByteBgr,
+            new MTLSwToTextureBlit(SurfaceType.ThreeByteBgr,
                                    MTLSurfaceDataBase.PF_3BYTE_BGR),
-            new OGLSwToTextureBlit(SurfaceType.Ushort565Rgb,
+            new MTLSwToTextureBlit(SurfaceType.Ushort565Rgb,
                                    MTLSurfaceDataBase.PF_USHORT_565_RGB),
-            new OGLSwToTextureBlit(SurfaceType.Ushort555Rgb,
+            new MTLSwToTextureBlit(SurfaceType.Ushort555Rgb,
                                    MTLSurfaceDataBase.PF_USHORT_555_RGB),
-            new OGLSwToTextureBlit(SurfaceType.Ushort555Rgbx,
+            new MTLSwToTextureBlit(SurfaceType.Ushort555Rgbx,
                                    MTLSurfaceDataBase.PF_USHORT_555_RGBX),
-            new OGLSwToTextureBlit(SurfaceType.ByteGray,
+            new MTLSwToTextureBlit(SurfaceType.ByteGray,
                                    MTLSurfaceDataBase.PF_BYTE_GRAY),
-            new OGLSwToTextureBlit(SurfaceType.UshortGray,
+            new MTLSwToTextureBlit(SurfaceType.UshortGray,
                                    MTLSurfaceDataBase.PF_USHORT_GRAY),
-            new OGLGeneralBlit(MTLSurfaceDataBase.OpenGLTexture,
+            new MTLGeneralBlit(MTLSurfaceDataBase.OpenGLTexture,
                                CompositeType.SrcNoEa,
                                blitIntArgbPreToTexture),
         };
@@ -512,13 +512,13 @@ class OGLRTTSurfaceToSurfaceTransform extends TransformBlit {
     }
 }
 
-final class OGLSurfaceToSwBlit extends Blit {
+final class MTLSurfaceToSwBlit extends Blit {
 
     private final int typeval;
     private WeakReference<SurfaceData> srcTmp;
 
     // destination will actually be ArgbPre or Argb
-    OGLSurfaceToSwBlit(final SurfaceType dstType,final int typeval) {
+    MTLSurfaceToSwBlit(final SurfaceType dstType, final int typeval) {
         super(MTLSurfaceDataBase.OpenGLSurface,
               CompositeType.SrcNoEa,
               dstType);
@@ -613,11 +613,11 @@ final class OGLSurfaceToSwBlit extends Blit {
     }
 }
 
-class OGLSwToSurfaceBlit extends Blit {
+class MTLSwToSurfaceBlit extends Blit {
 
     private int typeval;
 
-    OGLSwToSurfaceBlit(SurfaceType srcType, int typeval) {
+    MTLSwToSurfaceBlit(SurfaceType srcType, int typeval) {
         super(srcType,
               CompositeType.AnyAlpha,
               MTLSurfaceDataBase.OpenGLSurface);
@@ -664,11 +664,11 @@ class OGLSwToSurfaceScale extends ScaledBlit {
     }
 }
 
-class OGLSwToSurfaceTransform extends TransformBlit {
+class MTLSwToSurfaceTransform extends TransformBlit {
 
     private int typeval;
 
-    OGLSwToSurfaceTransform(SurfaceType srcType, int typeval) {
+    MTLSwToSurfaceTransform(SurfaceType srcType, int typeval) {
         super(srcType,
               CompositeType.AnyAlpha,
               MTLSurfaceDataBase.OpenGLSurface);
@@ -688,11 +688,11 @@ class OGLSwToSurfaceTransform extends TransformBlit {
     }
 }
 
-class OGLSwToTextureBlit extends Blit {
+class MTLSwToTextureBlit extends Blit {
 
     private int typeval;
 
-    OGLSwToTextureBlit(SurfaceType srcType, int typeval) {
+    MTLSwToTextureBlit(SurfaceType srcType, int typeval) {
         super(srcType,
               CompositeType.SrcNoEa,
               MTLSurfaceDataBase.OpenGLTexture);
@@ -712,9 +712,9 @@ class OGLSwToTextureBlit extends Blit {
     }
 }
 
-class OGLTextureToSurfaceBlit extends Blit {
+class MTLTextureToSurfaceBlit extends Blit {
 
-    OGLTextureToSurfaceBlit() {
+    MTLTextureToSurfaceBlit() {
         super(MTLSurfaceDataBase.OpenGLTexture,
               CompositeType.AnyAlpha,
               MTLSurfaceDataBase.OpenGLSurface);
@@ -734,9 +734,9 @@ class OGLTextureToSurfaceBlit extends Blit {
     }
 }
 
-class OGLTextureToSurfaceScale extends ScaledBlit {
+class MTLTextureToSurfaceScale extends ScaledBlit {
 
-    OGLTextureToSurfaceScale() {
+    MTLTextureToSurfaceScale() {
         super(MTLSurfaceDataBase.OpenGLTexture,
               CompositeType.AnyAlpha,
               MTLSurfaceDataBase.OpenGLSurface);
@@ -759,9 +759,9 @@ class OGLTextureToSurfaceScale extends ScaledBlit {
     }
 }
 
-class OGLTextureToSurfaceTransform extends TransformBlit {
+class MTLTextureToSurfaceTransform extends TransformBlit {
 
-    OGLTextureToSurfaceTransform() {
+    MTLTextureToSurfaceTransform() {
         super(MTLSurfaceDataBase.OpenGLTexture,
               CompositeType.AnyAlpha,
               MTLSurfaceDataBase.OpenGLSurface);
@@ -788,12 +788,12 @@ class OGLTextureToSurfaceTransform extends TransformBlit {
  * IntArgbPre->OpenGLSurface/Texture loop to get the intermediate
  * (premultiplied) surface down to OpenGL using simple blit.
  */
-class OGLGeneralBlit extends Blit {
+class MTLGeneralBlit extends Blit {
 
     private final Blit performop;
     private WeakReference<SurfaceData> srcTmp;
 
-    OGLGeneralBlit(SurfaceType dstType,
+    MTLGeneralBlit(SurfaceType dstType,
                    CompositeType compType,
                    Blit performop)
     {
@@ -837,12 +837,12 @@ class OGLGeneralBlit extends Blit {
  * IntArgbPre->OpenGLSurface/Texture loop to get the intermediate
  * (premultiplied) surface down to OpenGL using simple transformBlit.
  */
-final class OGLGeneralTransformedBlit extends TransformBlit {
+final class MTLGeneralTransformedBlit extends TransformBlit {
 
     private final TransformBlit performop;
     private WeakReference<SurfaceData> srcTmp;
 
-    OGLGeneralTransformedBlit(final TransformBlit performop) {
+    MTLGeneralTransformedBlit(final TransformBlit performop) {
         super(SurfaceType.Any, CompositeType.AnyAlpha,
               MTLSurfaceDataBase.OpenGLSurface);
         this.performop = performop;
@@ -875,12 +875,12 @@ final class OGLGeneralTransformedBlit extends TransformBlit {
 }
 
 /**
- * This general OGLAnyCompositeBlit implementation can convert any source/target
+ * This general MTLAnyCompositeBlit implementation can convert any source/target
  * surface to an intermediate surface using convertsrc/convertdst loops, applies
  * necessary composite operation, and then uses convertresult loop to get the
  * intermediate surface down to OpenGL.
  */
-final class OGLAnyCompositeBlit extends Blit {
+final class MTLAnyCompositeBlit extends Blit {
 
     private WeakReference<SurfaceData> dstTmp;
     private WeakReference<SurfaceData> srcTmp;
@@ -888,7 +888,7 @@ final class OGLAnyCompositeBlit extends Blit {
     private final Blit convertdst;
     private final Blit convertresult;
 
-    OGLAnyCompositeBlit(SurfaceType srctype, Blit convertsrc, Blit convertdst,
+    MTLAnyCompositeBlit(SurfaceType srctype, Blit convertsrc, Blit convertdst,
                         Blit convertresult) {
         super(srctype, CompositeType.Any, MTLSurfaceDataBase.OpenGLSurface);
         this.convertsrc = convertsrc;

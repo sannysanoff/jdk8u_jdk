@@ -121,7 +121,7 @@ public class MTLContext extends BufferedContext {
      *
      * @return an id string for the adapter
      */
-    public static final native String getOGLIdString();
+    public static final native String getMTLIdString();
 
     @Override
     public void saveState() {
