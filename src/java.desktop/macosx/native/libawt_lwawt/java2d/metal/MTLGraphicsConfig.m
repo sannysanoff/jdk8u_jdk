@@ -39,7 +39,7 @@
 
 /**
  * Disposes all memory and resources associated with the given
- * CGLGraphicsConfigInfo (including its native OGLContext data).
+ * CGLGraphicsConfigInfo (including its native MTLContext data).
  */
 void
 MTLGC_DestroyMTLGraphicsConfig(jlong pConfigInfo)
@@ -55,9 +55,9 @@ MTLGC_DestroyMTLGraphicsConfig(jlong pConfigInfo)
     }
 
 
-    OGLContext *oglc = (OGLContext*)mtlinfo->context;
+    MTLContext *oglc = (MTLContext*)mtlinfo->context;
     if (oglc != NULL) {
-        OGLContext_DestroyContextResources(oglc);
+        MTLContext_DestroyContextResources(oglc);
 
         MTLCtxInfo *ctxinfo = (MTLCtxInfo *)oglc->ctxInfo;
         if (ctxinfo != NULL) {
@@ -98,15 +98,15 @@ Java_sun_java2d_metal_MTLGraphicsConfig_initMTL
 {
     J2dRlsTraceLn(J2D_TRACE_INFO, "MTLGraphicsConfig_initMTL");
 
-    if (!OGLFuncs_OpenLibrary()) {
+    if (!MTLFuncs_OpenLibrary()) {
         return JNI_FALSE;
     }
 
-    if (!OGLFuncs_InitPlatformFuncs() ||
-        !OGLFuncs_InitBaseFuncs() ||
-        !OGLFuncs_InitExtFuncs())
+    if (!MTLFuncs_InitPlatformFuncs() ||
+        !MTLFuncs_InitBaseFuncs() ||
+        !MTLFuncs_InitExtFuncs())
     {
-        OGLFuncs_CloseLibrary();
+        MTLFuncs_CloseLibrary();
         return JNI_FALSE;
     }
 #ifdef REMOTELAYER
@@ -260,17 +260,17 @@ Java_sun_java2d_metal_MTLGraphicsConfig_getMTLConfigInfo
     [context makeCurrentContext];
 
     // get version and extension strings
-    const unsigned char *versionstr = j2d_glGetString(GL_VERSION);
-    if (!OGLContext_IsVersionSupported(versionstr)) {
+/*    const unsigned char *versionstr = j2d_glGetString(GL_VERSION);
+    if (!MTLContext_IsVersionSupported(versionstr)) {
         J2dRlsTraceLn(J2D_TRACE_ERROR, "MTLGraphicsConfig_getMTLConfigInfo: OpenGL 1.2 is required");
         [NSOpenGLContext clearCurrentContext];
         [argValue addObject: [NSNumber numberWithLong: 0L]];
         return;
-    }
-    J2dRlsTraceLn1(J2D_TRACE_INFO, "MTLGraphicsConfig_getMTLConfigInfo: OpenGL version=%s", versionstr);
+    }*/
+//    J2dRlsTraceLn1(J2D_TRACE_INFO, "MTLGraphicsConfig_getMTLConfigInfo: OpenGL version=%s", versionstr);
 
     jint caps = CAPS_EMPTY;
-    OGLContext_GetExtensionInfo(env, &caps);
+    MTLContext_GetExtensionInfo(env, &caps);
 
     GLint value = 0;
     [sharedPixelFormat
@@ -316,7 +316,7 @@ Java_sun_java2d_metal_MTLGraphicsConfig_getMTLConfigInfo
     ctxinfo->context = context;
     ctxinfo->scratchSurface = scratchSurface;
 
-    OGLContext *oglc = (OGLContext *)malloc(sizeof(OGLContext));
+    MTLContext *oglc = (MTLContext *)malloc(sizeof(MTLContext));
     if (oglc == 0L) {
         J2dRlsTraceLn(J2D_TRACE_ERROR, "MTLGC_InitMTLContext: could not allocate memory for mtlc");
         [NSOpenGLContext clearCurrentContext];
@@ -324,7 +324,7 @@ Java_sun_java2d_metal_MTLGraphicsConfig_getMTLConfigInfo
         [argValue addObject: [NSNumber numberWithLong: 0L]];
         return;
     }
-    memset(oglc, 0, sizeof(OGLContext));
+    memset(oglc, 0, sizeof(MTLContext));
     oglc->ctxInfo = ctxinfo;
     oglc->caps = caps;
 
@@ -374,7 +374,7 @@ Java_sun_java2d_metal_MTLGraphicsConfig_nativeGetMaxTextureSize
 
     [ThreadUtilities performOnMainThreadWaiting:YES block:^(){
         [sharedContext makeCurrentContext];
-        j2d_glGetIntegerv(GL_MAX_TEXTURE_SIZE, &max);
+//        j2d_glGetIntegerv(GL_MAX_TEXTURE_SIZE, &max);
         [NSOpenGLContext clearCurrentContext];
     }];
 

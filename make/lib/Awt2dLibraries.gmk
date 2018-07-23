@@ -1065,6 +1065,7 @@ ifeq ($(OPENJDK_TARGET_OS), macosx)
           -framework Cocoa \
           -framework Metal \
           -framework MetalKit \
+          -framework OpenGL \
           -framework Carbon \
           -framework ApplicationServices \
           -framework JavaNativeFoundation \

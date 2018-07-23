@@ -27,9 +27,8 @@
 #define MTLGraphicsConfig_h_Included
 
 #import "jni.h"
-#import "J2D_GL/gl.h"
-#import "OGLSurfaceData.h"
-#import "OGLContext.h"
+#import "MTLSurfaceDataBase.h"
+#import "MTLContext.h"
 #import <Cocoa/Cocoa.h>
 
 @interface MTLGraphicsConfigUtil : NSObject {}
@@ -88,7 +87,7 @@ extern void sendLayerID(int layerID);
 typedef struct _MTLGraphicsConfigInfo {
     jint                screen;
     NSOpenGLPixelFormat *pixfmt;
-    OGLContext          *context;
+    MTLContext          *context;
 } MTLGraphicsConfigInfo;
 
 /**

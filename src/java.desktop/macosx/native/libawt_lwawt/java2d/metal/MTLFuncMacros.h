@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,17 +23,14 @@
  * questions.
  */
 
-#ifndef __cglext_h_
-#define __cglext_h_
+#ifndef MTLFuncMacros_h_Included
+#define MTLFuncMacros_h_Included
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#define MTL_FUNC_TYPE(f)        f##Type
+#define MTL_J2D_MANGLE(f)       j2d_##f
+#define MTL_DECLARE_FUNC(f)     MTL_FUNC_TYPE(f) MTL_J2D_MANGLE(f)
+#define MTL_DECLARE_EXT_FUNC(f) MTL_DECLARE_FUNC(f)
+#define MTL_EXTERN_FUNC(f)      extern MTL_DECLARE_FUNC(f)
+#define MTL_EXTERN_EXT_FUNC(f)  MTL_EXTERN_FUNC(f)
 
-#include <OpenGL/OpenGL.h>
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif
+#endif /* MTLFuncMacros_h_Included */

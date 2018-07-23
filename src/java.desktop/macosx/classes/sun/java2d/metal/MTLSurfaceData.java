@@ -34,7 +34,7 @@ import sun.lwawt.macosx.CPlatformView;
 import java.awt.*;
 import java.awt.image.ColorModel;
 
-public abstract class MTLSurfaceData extends OGLSurfaceData {
+public abstract class MTLSurfaceData extends MTLSurfaceDataBase {
 
     protected final int scale;
     protected final int width;

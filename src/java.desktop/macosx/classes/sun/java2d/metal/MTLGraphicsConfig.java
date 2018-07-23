@@ -58,7 +58,7 @@ import static sun.java2d.opengl.OGLSurfaceData.FBOBJECT;
 import static sun.java2d.opengl.OGLSurfaceData.TEXTURE;
 
 public final class MTLGraphicsConfig extends CGraphicsConfig
-    implements OGLGraphicsConfig
+    implements MTLGraphicsConfigBase
 {
     //private static final int kOpenGLSwapInterval =
     // RuntimeOptions.getCurrentOptions().OpenGLSwapInterval;
@@ -70,7 +70,7 @@ public final class MTLGraphicsConfig extends CGraphicsConfig
     private BufferCapabilities bufferCaps;
     private long pConfigInfo;
     private ContextCapabilities oglCaps;
-    private OGLContext context;
+    private MTLContext context;
     private final Object disposerReferent = new Object();
     private final int maxTextureSize;
 
@@ -102,7 +102,7 @@ public final class MTLGraphicsConfig extends CGraphicsConfig
         this.pConfigInfo = configInfo;
         this.oglCaps = oglCaps;
         this.maxTextureSize = maxTextureSize;
-        context = new OGLContext(OGLRenderQueue.getInstance(), this);
+        context = new MTLContext(MTLRenderQueue.getInstance(), this);
         refPConfigInfo(pConfigInfo);
         // add a record to the Disposer so that we destroy the native
         // CGLGraphicsConfigInfo data when this object goes away
@@ -218,7 +218,7 @@ public final class MTLGraphicsConfig extends CGraphicsConfig
 
     /**
      * Returns true if the provided capability bit is present for this config.
-     * See OGLContext.java for a list of supported capabilities.
+     * See MTLContext.java for a list of supported capabilities.
      */
     @Override
     public boolean isCapPresent(int cap) {
@@ -236,7 +236,7 @@ public final class MTLGraphicsConfig extends CGraphicsConfig
      * @see sun.java2d.pipe.hw.BufferedContextProvider#getContext
      */
     @Override
-    public OGLContext getContext() {
+    public MTLContext getContext() {
         return context;
     }
 

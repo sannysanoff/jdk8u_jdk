@@ -191,7 +191,7 @@ AWT_ASSERT_APPKIT_THREAD;
     if (textureID == 0) {
         return;
     }
-
+/*
     glEnable(target);
     glBindTexture(target, textureID);
 
@@ -211,6 +211,7 @@ AWT_ASSERT_APPKIT_THREAD;
 
     glBindTexture(target, 0);
     glDisable(target);
+    */
 }
 
 -(BOOL)canDrawInCGLContext:(CGLContextObj)glContext pixelFormat:(CGLPixelFormatObj)pixelFormat forLayerTime:(CFTimeInterval)timeInterval displayTime:(const CVTimeStamp *)timeStamp{
@@ -308,7 +309,7 @@ AWT_ASSERT_APPKIT_THREAD;
 @end
 
 /*
- * Class:     sun_java2d_opengl_CGLLayer
+ * Class:     sun_java2d_metal_CGLLayer
  * Method:    nativeCreateLayer
  * Signature: ()J
  */
@@ -341,9 +342,9 @@ Java_sun_java2d_metal_MTLLayer_validate
     MTLLayer *layer = OBJC(layerPtr);
 
     if (surfaceData != NULL) {
-        OGLSDOps *oglsdo = (OGLSDOps*) SurfaceData_GetOps(env, surfaceData);
+        BMTLSDOps *oglsdo = (BMTLSDOps*) SurfaceData_GetOps(env, surfaceData);
         layer.textureID = oglsdo->textureID;
-        layer.target = GL_TEXTURE_2D;
+        //layer.target =  GL_TEXTURE_2D;
         layer.textureWidth = oglsdo->width;
         layer.textureHeight = oglsdo->height;
     } else {

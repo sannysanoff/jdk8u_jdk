@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2006, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,29 +23,52 @@
  * questions.
  */
 
-#ifndef MTLFuncs_md_h_Included
-#define MTLFuncs_md_h_Included
+#ifndef HEADLESS
 
-#include <dlfcn.h>
-#include "MTLFuncMacros.h"
+#include "MTLFuncs.h"
 
 
-#define MTL_LIB_HANDLE (void*)
-#define MTL_DECLARE_LIB_HANDLE()
+MTL_DECLARE_LIB_HANDLE();
 
-#define MTL_LIB_IS_UNINITIALIZED() \
-    (MTL_LIB_HANDLE == NULL)
-#define MTL_OPEN_LIB() \
-    MTL_LIB_HANDLE = dlopen("/System/Library/Frameworks/OpenGL.framework/Versions/Current/Libraries/libGL.dylib", RTLD_LAZY | RTLD_GLOBAL)
-#define MTL_CLOSE_LIB() \
-    dlclose(MTL_LIB_HANDLE)
-#define MTL_GET_PROC_ADDRESS(f) \
-    dlsym(MTL_LIB_HANDLE, #f)
-#define MTL_GET_EXT_PROC_ADDRESS(f) \
-    _GET_PROC_ADDRESS(f)
+jboolean
+MTLFuncs_OpenLibrary()
+{
+    J2dRlsTraceLn(J2D_TRACE_INFO, "MTLFuncs_OpenLibrary");
 
 
-#define MTL_EXPRESS_PLATFORM_FUNCS(action)
-#define MTL_EXPRESS_PLATFORM_EXT_FUNCS(action)
+    return JNI_TRUE;
+}
 
-#endif /* OGLFuncs_md_h_Included */
+void
+MTLFuncs_CloseLibrary()
+{
+    J2dRlsTraceLn(J2D_TRACE_INFO, "MTLFuncs_CloseLibrary");
+
+}
+
+jboolean
+MTLFuncs_InitPlatformFuncs()
+{
+    J2dRlsTraceLn(J2D_TRACE_INFO, "MTLFuncs_InitPlatformFuncs");
+
+    return JNI_TRUE;
+}
+
+jboolean
+MTLFuncs_InitBaseFuncs()
+{
+    J2dRlsTraceLn(J2D_TRACE_INFO, "MTLFuncs_InitBaseFuncs");
+
+
+    return JNI_TRUE;
+}
+
+jboolean
+MTLFuncs_InitExtFuncs()
+{
+    J2dRlsTraceLn(J2D_TRACE_INFO, "MTLFuncs_InitExtFuncs");
+
+    return JNI_TRUE;
+}
+
+#endif /* !HEADLESS */

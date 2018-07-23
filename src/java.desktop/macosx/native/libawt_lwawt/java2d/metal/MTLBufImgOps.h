@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,23 +23,25 @@
  * questions.
  */
 
-#ifndef MTLSurfaceData_h_Included
-#define MTLSurfaceData_h_Included
+#ifndef MTLBufImgOps_h_Included
+#define MTLBufImgOps_h_Included
 
-#import "MTLSurfaceDataBase.h"
-#import "MTLGraphicsConfig.h"
-#import "AWTWindow.h"
-#import "MTLLayer.h"
+#include "MTLContext.h"
 
-/**
- * The CGLSDOps structure contains the CGL-specific information for a given
- * MTLSurfaceData.  It is referenced by the native MTLSDOps structure.
- */
-typedef struct _MTLSDOps {
-    AWTView               *peerData;
-    MTLLayer              *layer;
-    jint              argb[4]; // background clear color
-    MTLGraphicsConfigInfo *configInfo;
-} MTLSDOps;
+void MTLBufImgOps_EnableConvolveOp(MTLContext *mtlc, jlong pSrcOps,
+                                   jboolean edgeZeroFill,
+                                   jint kernelWidth, jint KernelHeight,
+                                   unsigned char *kernelVals);
+void MTLBufImgOps_DisableConvolveOp(MTLContext *mtlc);
+void MTLBufImgOps_EnableRescaleOp(MTLContext *mtlc, jlong pSrcOps,
+                                  jboolean nonPremult,
+                                  unsigned char *scaleFactors,
+                                  unsigned char *offsets);
+void MTLBufImgOps_DisableRescaleOp(MTLContext *mtlc);
+void MTLBufImgOps_EnableLookupOp(MTLContext *mtlc, jlong pSrcOps,
+                                 jboolean nonPremult, jboolean shortData,
+                                 jint numBands, jint bandLength, jint offset,
+                                 void *tableValues);
+void MTLBufImgOps_DisableLookupOp(MTLContext *mtlc);
 
-#endif /* CGLSurfaceData_h_Included */
+#endif /* MTLBufImgOps_h_Included */
