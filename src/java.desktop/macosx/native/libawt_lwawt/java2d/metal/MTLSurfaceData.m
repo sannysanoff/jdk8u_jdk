@@ -114,9 +114,21 @@ MTLSD_GetNativeConfigInfo(BMTLSDOps *oglsdo)
 void *
 MTLSD_SetScratchSurface(JNIEnv *env, jlong pConfigInfo)
 {
-    J2dTraceLn(J2D_TRACE_INFO, "OGLSD_SetScratchContext");
+    J2dTraceLn(J2D_TRACE_INFO, "MTLSD_SetScratchSurface");
 
-    return NULL;
+
+    MTLGraphicsConfigInfo *cglInfo = (MTLGraphicsConfigInfo *)jlong_to_ptr(pConfigInfo);
+    if (cglInfo == NULL) {
+         J2dRlsTraceLn(J2D_TRACE_ERROR, "MTLSD_SetScratchSurface: cgl config info is null");
+         return NULL;
+    }
+
+    MTLContext *oglc = cglInfo->context;
+    if (oglc == NULL) {
+        J2dRlsTraceLn(J2D_TRACE_ERROR, "OGLSD_SetScratchContext: ogl context is null");
+        return NULL;
+    }
+    return oglc;
 }
 
 /**
@@ -156,6 +168,7 @@ MTLSD_SwapBuffers(JNIEnv *env, jlong pPeerData)
 void
 MTLSD_Flush(JNIEnv *env)
 {
+fprintf(stderr, "MTLSD_Flush\n");
     BMTLSDOps *dstOps = MTLRenderQueue_GetCurrentDestination();
     if (dstOps != NULL) {
         MTLSDOps *dstCGLOps = (MTLSDOps *)dstOps->privOps;
@@ -166,6 +179,8 @@ MTLSD_Flush(JNIEnv *env)
                 [layer draw];
             }];
         }
+    } else {
+    fprintf(stderr, "MTLSD_Flush: dstOps=NULL\n");
     }
 }
 

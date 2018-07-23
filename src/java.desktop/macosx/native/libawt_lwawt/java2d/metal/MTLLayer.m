@@ -58,6 +58,7 @@ static struct Vertex verts[N*3];
 
 - (id) initWithJavaLayer:(JNFWeakJObjectWrapper *)layer;
 {
+fprintf(stderr, "MTLayer.initWithJavaLayer\n");
 AWT_ASSERT_APPKIT_THREAD;
     // Initialize ourselves
     self = [super init];
@@ -220,6 +221,7 @@ AWT_ASSERT_APPKIT_THREAD;
 
 -(void)draw
 {
+    fprintf(stderr, "MTLayer.draw\n");
     dispatch_semaphore_wait(_semaphore, DISPATCH_TIME_FOREVER);
     if (!_currentDrawable) {
         _currentDrawable = [self nextDrawable];
@@ -340,7 +342,7 @@ Java_sun_java2d_metal_MTLLayer_validate
 (JNIEnv *env, jclass cls, jlong layerPtr, jobject surfaceData)
 {
     MTLLayer *layer = OBJC(layerPtr);
-
+fprintf(stderr, "Java_sun_java2d_metal_MTLLayer_validate\n");
     if (surfaceData != NULL) {
         BMTLSDOps *oglsdo = (BMTLSDOps*) SurfaceData_GetOps(env, surfaceData);
         layer.textureID = oglsdo->textureID;

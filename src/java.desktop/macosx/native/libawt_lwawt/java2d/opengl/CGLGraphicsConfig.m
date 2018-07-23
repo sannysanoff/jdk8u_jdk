@@ -286,7 +286,6 @@ Java_sun_java2d_opengl_CGLGraphicsConfig_getCGLConfigInfo
         [argValue addObject: [NSNumber numberWithLong: 0L]];
         return;
     }
-    fprintf(stderr, "USE_NSVIEW_FOR_SCRATCH");
     [window setContentView: scratchSurface];
 #else
     NSOpenGLPixelBuffer *scratchSurface =

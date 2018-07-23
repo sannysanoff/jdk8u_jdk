@@ -127,7 +127,7 @@
 extern jint previousOp;
 
 MTLContext *MTLRenderQueue_GetCurrentContext();
-MTLSDOps *MTLRenderQueue_GetCurrentDestination();
+BMTLSDOps *MTLRenderQueue_GetCurrentDestination();
 void MTLRenderQueue_CheckPreviousOp(jint op);
 void MTLTR_DisableGlyphModeState();
 
