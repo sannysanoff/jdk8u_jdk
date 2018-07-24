@@ -474,9 +474,9 @@ Java_sun_java2d_metal_MTLRenderQueue_flushBuffer
                 if (mtlc != NULL) {
                     RESET_PREVIOUS_OP();
                 }
-                 fprintf(stderr, "MTLContext_SetSurfaces\n");
+                 fprintf(stderr, "MTLContext_SetSurfaces \n");
                 mtlc = MTLContext_SetSurfaces(env, pSrc, pDst);
-                dstOps = (MTLSDOps *)jlong_to_ptr(pDst);
+                dstOps = (BMTLSDOps *)jlong_to_ptr(pDst);
             }
             break;
         case sun_java2d_pipe_BufferedOpCodes_SET_SCRATCH_SURFACE:
@@ -762,7 +762,7 @@ Java_sun_java2d_metal_MTLRenderQueue_flushBuffer
         }
         MTLSD_Flush(env);
     }
-
+MTLSD_Flush(env);
 }
 
 /**

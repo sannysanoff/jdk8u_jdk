@@ -239,14 +239,14 @@ MTLSD_InitTextureObject(MTLSDOps *mtlsdo,
  * a guide.  See MTLSD_InitTextureObject() for more information.
  */
 JNIEXPORT jboolean JNICALL
-Java_sun_java2d_metal_MTLSurfaceData_initTexture
+Java_sun_java2d_metal_MTLSurfaceDataBase_initTexture
     (JNIEnv *env, jobject mtlsd,
      jlong pData, jboolean isOpaque,
      jboolean texNonPow2, jboolean texRect,
      jint width, jint height)
 {
     BMTLSDOps *mtlsdo = (BMTLSDOps *)jlong_to_ptr(pData);
-
+fprintf(stderr, "MTLSurfaceData_initTexture\n");
     J2dTraceLn2(J2D_TRACE_INFO, "MTLSurfaceData_initTexture: w=%d h=%d",
                 width, height);
 
@@ -391,12 +391,13 @@ MTLSD_InitFBObject(GLuint *fbobjectID, GLuint *depthID,
  * for more information.
  */
 JNIEXPORT jboolean JNICALL
-Java_sun_java2d_metal_MTLSurfaceData_initFBObject
+Java_sun_java2d_metal_MTLSurfaceDataBase_initFBObject
     (JNIEnv *env, jobject mtlsd,
      jlong pData, jboolean isOpaque,
      jboolean texNonPow2, jboolean texRect,
      jint width, jint height)
 {
+fprintf(stderr, "Java_sun_java2d_metal_MTLSurfaceData_initFBObject\n");
  /*   MTLSDOps *mtlsdo = (MTLSDOps *)jlong_to_ptr(pData);
     GLuint fbobjectID, depthID;
 
@@ -453,7 +454,7 @@ Java_sun_java2d_metal_MTLSurfaceData_initFBObject
  * the underlying native window.
  */
 JNIEXPORT jboolean JNICALL
-Java_sun_java2d_metal_MTLSurfaceData_initFlipBackbuffer
+Java_sun_java2d_metal_MTLSurfaceDataBase_initFlipBackbuffer
     (JNIEnv *env, jobject mtlsd,
      jlong pData)
 {
@@ -493,7 +494,7 @@ Java_sun_java2d_metal_MTLSurfaceData_initFlipBackbuffer
 }
 
 JNIEXPORT jint JNICALL
-Java_sun_java2d_metal_MTLSurfaceData_getTextureTarget
+Java_sun_java2d_metal_MTLSurfaceDataBase_getTextureTarget
     (JNIEnv *env, jobject mtlsd,
      jlong pData)
 {
@@ -505,7 +506,7 @@ Java_sun_java2d_metal_MTLSurfaceData_getTextureTarget
 }
 
 JNIEXPORT jint JNICALL
-Java_sun_java2d_metal_MTLSurfaceData_getTextureID
+Java_sun_java2d_metal_MTLSurfaceDataBase_getTextureID
     (JNIEnv *env, jobject mtlsd,
      jlong pData)
 {
