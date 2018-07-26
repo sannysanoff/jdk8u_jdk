@@ -13,7 +13,9 @@ public class MetalRenderTest {
     public void testMetal() throws Exception {
         BufferedImage bi = RenderUtil.capture(120, 120,
                 graphics2D -> {
-                   // graphics2D.drawString("A", 75, 50);
+                    graphics2D.fillRect(0, 0, 50, 50);
+                    graphics2D.fillRect(30, 30, 150, 150);
+
                 });
     }
     @Test

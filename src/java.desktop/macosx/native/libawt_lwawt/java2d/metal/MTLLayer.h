@@ -58,6 +58,15 @@
 - (id) initWithJavaLayer:(JNFWeakJObjectWrapper *)javaLayer;
 - (void) blitTexture;
 - (void) draw;
+- (void) fillParallelogramX:(jfloat)x
+                          Y:(jfloat)y
+                        DX1:(jfloat)dx1
+                        DY1:(jfloat)dy1
+                        DX2:(jfloat)dx2
+                        DY2:(jfloat)dy2;
+- (void) beginFrame;
+- (void) endFrame;
+
 @end
 
 #endif /* CGLLayer_h_Included */

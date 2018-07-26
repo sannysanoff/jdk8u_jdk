@@ -1,28 +1,3 @@
-/*
- * Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
- *
- * This code is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
- *
- * This code is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * version 2 for more details (a copy is included in the LICENSE file that
- * accompanied this code).
- *
- * You should have received a copy of the GNU General Public License version
- * 2 along with this work; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
- *
- * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
- * or visit www.oracle.com if you need additional information or have any
- * questions.
- */
-
 #import "MTLGraphicsConfig.h"
 #import "MTLLayer.h"
 #import "ThreadUtilities.h"
@@ -33,7 +8,7 @@
 extern NSOpenGLPixelFormat *sharedPixelFormat;
 extern NSOpenGLContext *sharedContext;
 
-const int N = 1;
+const int N = 2;
 static struct Vertex verts[N*3];
 
 @implementation MTLLayer {
@@ -48,6 +23,9 @@ static struct Vertex verts[N*3];
     id<MTLDevice> 			    _device;
     id <MTLBuffer> _uniformBuffer;
     int uniformBufferIndex;
+    id <MTLCommandBuffer> _commandBuffer;
+    struct FrameUniforms * _uniforms;
+    BOOL _emptyCommandBuffer;
 }
 
 @synthesize javaLayer;
@@ -119,8 +97,6 @@ AWT_ASSERT_APPKIT_THREAD;
     pipelineDesc.fragmentFunction = fragFunc;
     pipelineDesc.vertexDescriptor = vertDesc;
     pipelineDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm;
-//    pipelineDesc.depthAttachmentPixelFormat = self.depthStencilPixelFormat;
-//    pipelineDesc.stencilAttachmentPixelFormat = self.depthStencilPixelFormat;
     _pipelineState = [_device newRenderPipelineStateWithDescriptor:pipelineDesc error:&error];
     if (!_pipelineState) {
         NSLog(@"Failed to create pipeline state, error %@", error);
@@ -168,14 +144,170 @@ AWT_ASSERT_APPKIT_THREAD;
 
     // Create command queue
     _commandQueue = [_device newCommandQueue];
+    _commandBuffer = nil;
+    _emptyCommandBuffer = YES;
     return self;
+}
+
+- (void) fillParallelogramX:(jfloat)x
+                          Y:(jfloat)y
+                        DX1:(jfloat)dx1
+                        DY1:(jfloat)dy1
+                        DX2:(jfloat)dx2
+                        DY2:(jfloat)dy2
+{
+    if (!_commandBuffer) {
+        [self beginFrame];
+    }
+    _emptyCommandBuffer = NO;
+    fprintf(stderr, "----fillParallelogramX----\n");
+
+    verts[0].position[0] = (2.0*x/self.drawableSize.width) - 1.0;
+    verts[0].position[1] = 2.0*(1.0 - y/self.drawableSize.height) - 1.0;
+    verts[0].position[2] = 0;
+
+    verts[1].position[0] = 2.0*(x+dx1)/self.drawableSize.width - 1.0;
+    verts[1].position[1] = 2.0*(1.0 - (y+dy1)/self.drawableSize.height) - 1.0;
+    verts[1].position[2] = 0;
+
+    verts[2].position[0] = 2.0*(x+dx2)/self.drawableSize.width - 1.0;
+    verts[2].position[1] = 2.0*(1.0 - (y+dy2)/self.drawableSize.height) - 1.0;
+    verts[2].position[2] = 0;
+
+    verts[3].position[0] = 2.0*(x+dx1)/self.drawableSize.width - 1.0;
+    verts[3].position[1] = 2.0*(1.0 - (y+dy1)/self.drawableSize.height) - 1.0;
+    verts[3].position[2] = 0;
+
+    verts[4].position[0] = 2.0*(x + dx1 + dx2)/self.drawableSize.width - 1.0;
+    verts[4].position[1] = 2.0*(1.0 - (y+ dy1 + dy2)/self.drawableSize.height) - 1.0;
+    verts[4].position[2] = 0;
+
+    verts[5].position[0] = 2.0*(x+dx2)/self.drawableSize.width - 1.0;
+    verts[5].position[1] = 2.0*(1.0 - (y+dy2)/self.drawableSize.height) - 1.0;
+    verts[5].position[2] = 0;
+
+    verts[0].color[0] = 255;
+    verts[0].color[1] = 0;
+    verts[0].color[2] = 255;
+    verts[0].color[3] = 255;
+
+    verts[1].color[0] = 255;
+    verts[1].color[1] = 255;
+    verts[1].color[2] = 0;
+    verts[1].color[3] = 255;
+
+    verts[2].color[0] = 255;
+    verts[2].color[1] = 255;
+    verts[2].color[2] = 255;
+    verts[2].color[3] = 0;
+
+    verts[3].color[0] = 255;
+    verts[3].color[1] = 0;
+    verts[3].color[2] = 255;
+    verts[3].color[3] = 255;
+
+    verts[4].color[0] = 255;
+    verts[4].color[1] = 255;
+    verts[4].color[2] = 0;
+    verts[4].color[3] = 255;
+
+    verts[5].color[0] = 255;
+    verts[5].color[1] = 255;
+    verts[5].color[2] = 255;
+    verts[5].color[3] = 0;
+
+
+    _vertexBuffer = [_device newBufferWithBytes:verts
+                                         length:sizeof(verts)
+                                        options:
+                                                MTLResourceCPUCacheModeDefaultCache];
+    // Encode render command.
+    MTLRenderPassDescriptor*  _renderPassDesc = [MTLRenderPassDescriptor renderPassDescriptor];
+
+    if (_renderPassDesc) {
+        MTLRenderPassColorAttachmentDescriptor *colorAttachment = _renderPassDesc.colorAttachments[0];
+        colorAttachment.texture = _currentDrawable.texture;
+        colorAttachment.loadAction = MTLLoadActionLoad;
+        colorAttachment.clearColor = MTLClearColorMake(0.0f, 0.0f, 0.0f, 1.0f);
+
+        colorAttachment.storeAction = MTLStoreActionStore;
+        id <MTLRenderCommandEncoder> encoder =
+                [_commandBuffer renderCommandEncoderWithDescriptor:_renderPassDesc];
+        MTLViewport vp = {0, 0, self.drawableSize.width, self.drawableSize.height, 0, 1};
+        //fprintf(stderr, "%f %f \n", self.drawableSize.width, self.drawableSize.height);
+        [encoder setViewport:vp];
+        [encoder setRenderPipelineState:_pipelineState];
+        [encoder setVertexBuffer:_uniformBuffer
+                          offset:0 atIndex:FrameUniformBuffer];
+
+        [encoder setVertexBuffer:_vertexBuffer offset:0 atIndex:MeshVertexBuffer];
+        [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:N * 3];
+        [encoder endEncoding];
+    }
+
+}
+- (void) beginFrame {
+    if (_commandBuffer) {
+        [self endFrame];
+    }
+    fprintf(stderr, "----beginFrame----\n");
+//    dispatch_semaphore_wait(_semaphore, DISPATCH_TIME_FOREVER);
+    if (!_currentDrawable) {
+        _currentDrawable = [[self nextDrawable] retain];
+    }
+
+    if (!_currentDrawable) {
+        fprintf(stderr, "ERROR: Failed to get a valid drawable.\n");
+    } else {
+        vector_float4 X = {1, 0, 0, 0};
+        vector_float4 Y = {0, 1, 0, 0};
+        vector_float4 Z = {0, 0, 1, 0};
+        vector_float4 W = {0, 0, 0, 1};
+
+        matrix_float4x4 rot = {X, Y, Z, W};
+
+        _uniforms = (struct FrameUniforms *) [_uniformBuffer contents];
+        _uniforms->projectionViewModel = rot;
+
+        // Create a command buffer.
+        _commandBuffer = [[_commandQueue commandBuffer] retain];
+    }
+
+}
+
+- (void) endFrame {
+
+    if (_commandBuffer) {
+        fprintf(stderr, "----endFrame----\n");
+
+//        __block dispatch_semaphore_t semaphore = _semaphore;
+//        [_commandBuffer addCompletedHandler:^(id <MTLCommandBuffer> buffer) {
+//            [_commandBuffer release];
+//            if (_currentDrawable) [_currentDrawable release];
+//            _commandBuffer = nil;
+//            dispatch_semaphore_signal(semaphore);
+//
+//        }];
+        if (!_emptyCommandBuffer) {
+            [_commandBuffer presentDrawable:_currentDrawable];
+            [_commandBuffer commit];
+        }
+
+
+        [_commandBuffer release];
+        if (_currentDrawable) [_currentDrawable release];
+        _currentDrawable = nil;
+        _commandBuffer = nil;
+        _emptyCommandBuffer = YES;
+        fprintf(stderr, "----endFrame---- 1\n");
+    }
 }
 
 - (void) dealloc {
     self.javaLayer = nil;
     [super dealloc];
 }
-
+/*
 - (CGLPixelFormatObj)copyCGLPixelFormatForDisplayMask:(uint32_t)mask {
     return CGLRetainPixelFormat(sharedPixelFormat.CGLPixelFormatObj);
 }
@@ -185,7 +317,7 @@ AWT_ASSERT_APPKIT_THREAD;
     CGLCreateContext(pixelFormat, sharedContext.CGLContextObj, &contextObj);
     return contextObj;
 }
-
+*/
 // use texture (intermediate buffer) as src and blit it to the layer
 - (void) blitTexture
 {
@@ -213,10 +345,6 @@ AWT_ASSERT_APPKIT_THREAD;
     glBindTexture(target, 0);
     glDisable(target);
     */
-}
-
--(BOOL)canDrawInCGLContext:(CGLContextObj)glContext pixelFormat:(CGLPixelFormatObj)pixelFormat forLayerTime:(CFTimeInterval)timeInterval displayTime:(const CVTimeStamp *)timeStamp{
-    return textureID == 0 ? NO : YES;
 }
 
 -(void)draw

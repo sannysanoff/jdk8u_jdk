@@ -25,15 +25,22 @@
 
 #ifndef HEADLESS
 
+
+
+
 #include <jlong.h>
 #include <jni_util.h>
 #include <math.h>
+
+
+#define DEBUG 1
 
 #include "sun_java2d_metal_MTLRenderer.h"
 
 #include "MTLRenderer.h"
 #include "MTLRenderQueue.h"
 #include "MTLSurfaceData.h"
+
 
 /**
  * Note: Some of the methods in this file apply a "magic number"
@@ -349,6 +356,13 @@ MTLRenderer_FillParallelogram(MTLContext *mtlc,
                               jfloat dx21, jfloat dy21,
                               jfloat dx12, jfloat dy12)
 {
+fprintf(stderr, "MTLRenderer_FillParallelogram "
+                                "(x=%6.2f y=%6.2f "
+                                "dx1=%6.2f dy1=%6.2f "
+                                "dx2=%6.2f dy2=%6.2f)\n",
+                                fx11, fy11,
+                                dx21, dy21,
+                                dx12, dy12);
     J2dTraceLn6(J2D_TRACE_INFO,
                 "MTLRenderer_FillParallelogram "
                 "(x=%6.2f y=%6.2f "
@@ -357,7 +371,34 @@ MTLRenderer_FillParallelogram(MTLContext *mtlc,
                 fx11, fy11,
                 dx21, dy21,
                 dx12, dy12);
+   // MTLCtxInfo *ctxinfo = (MTLCtxInfo *)mtlc->ctxInfo;
+    BMTLSDOps *dstOps = MTLRenderQueue_GetCurrentDestination();
+
+    fprintf(stderr, "MTLRenderer_FillParallelogram "
+                    "(%p x=%6.2f y=%6.2f "
+                    "dx1=%6.2f dy1=%6.2f "
+                    "dx2=%6.2f dy2=%6.2f)\n",
+            dstOps, fx11, fy11,
+            dx21, dy21,
+            dx12, dy12);
+
+    if (dstOps != NULL) {
+        MTLSDOps *dstCGLOps = (MTLSDOps *)dstOps->privOps;
+        MTLLayer *layer = (MTLLayer*)dstCGLOps->layer;
+        if (layer != NULL) {
+            [JNFRunLoop performOnMainThreadWaiting:NO withBlock:^(){
+//                AWT_ASSERT_APPKIT_THREAD;
+                [layer fillParallelogramX:fx11 Y:fy11 DX1:dx21 DY1:dy21 DX2:dx12 DY2:dy12];
+            }];
+        } else {
+            fprintf(stderr, "MTLRenderer_FillParallelogram: dstCGLOps->layer=NULL\n");
+        }
+    } else {
+        fprintf(stderr, "MTLRenderer_FillParallelogram: dstOps=NULL\n");
+    }
+
 /*
+
     RETURN_IF_NULL(mtlc);
 
     CHECK_PREVIOUS_OP(GL_QUADS);

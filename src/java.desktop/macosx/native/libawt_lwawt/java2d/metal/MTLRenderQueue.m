@@ -231,11 +231,11 @@ Java_sun_java2d_metal_MTLRenderQueue_flushBuffer
                 jfloat dy21 = NEXT_FLOAT(b);
                 jfloat dx12 = NEXT_FLOAT(b);
                 jfloat dy12 = NEXT_FLOAT(b);
-                fprintf(stderr, "MTLRenderer_FillParallelogram\n");
-                //MTLRenderer_FillParallelogram(mtlc,
-                //                              x11, y11,
-                //                              dx21, dy21,
-                //                              dx12, dy12);
+                //fprintf(stderr, "MTLRenderer_FillParallelogram\n");
+                MTLRenderer_FillParallelogram(mtlc,
+                                              x11, y11,
+                                              dx21, dy21,
+                                              dx12, dy12);
             }
             break;
         case sun_java2d_pipe_BufferedOpCodes_FILL_AAPARALLELOGRAM:
@@ -476,7 +476,31 @@ Java_sun_java2d_metal_MTLRenderQueue_flushBuffer
                 }
                  fprintf(stderr, "MTLContext_SetSurfaces \n");
                 mtlc = MTLContext_SetSurfaces(env, pSrc, pDst);
+
+                BMTLSDOps* oldDstOps = dstOps;
                 dstOps = (BMTLSDOps *)jlong_to_ptr(pDst);
+
+                if (dstOps != NULL) {
+                    MTLSDOps *dstCGLOps = (MTLSDOps *)dstOps->privOps;
+                    MTLLayer *layer = (MTLLayer*)dstCGLOps->layer;
+                    if (layer != NULL) {
+                        [JNFRunLoop performOnMainThreadWaiting:NO withBlock:^(){
+                            //AWT_ASSERT_APPKIT_THREAD;
+                            [layer beginFrame];
+                        }];
+                    } else {
+                        dstOps = oldDstOps;
+                        MTLSDOps *dstCGLOps = (MTLSDOps *)dstOps->privOps;
+                        MTLLayer *layer = (MTLLayer*)dstCGLOps->layer;
+                        if (layer != NULL) {
+                            [JNFRunLoop performOnMainThreadWaiting:NO withBlock:^(){
+                                [layer beginFrame];
+                            }];
+                        }
+                    }
+                } else {
+                    fprintf(stderr, "SET_SURFACES: dstOps=NULL\n");
+                }
             }
             break;
         case sun_java2d_pipe_BufferedOpCodes_SET_SCRATCH_SURFACE:
@@ -487,7 +511,7 @@ Java_sun_java2d_metal_MTLRenderQueue_flushBuffer
                 }
                 fprintf(stderr, "MTLSD_SetScratchSurface\n");
                 mtlc = MTLSD_SetScratchSurface(env, pConfigInfo);
-                dstOps = NULL;
+               // dstOps = NULL;
             }
             break;
         case sun_java2d_pipe_BufferedOpCodes_FLUSH_SURFACE:
@@ -529,7 +553,7 @@ Java_sun_java2d_metal_MTLRenderQueue_flushBuffer
                 // so we should nullify the current mtlc and dstOps to avoid
                 // calling glFlush() (or similar) while no context is current
                 mtlc = NULL;
-                dstOps = NULL;
+             //   dstOps = NULL;
             }
             break;
         case sun_java2d_pipe_BufferedOpCodes_INVALIDATE_CONTEXT:
@@ -544,7 +568,7 @@ Java_sun_java2d_metal_MTLRenderQueue_flushBuffer
                 // invalidate the references to the current context and
                 // destination surface that are maintained at the native level
                 mtlc = NULL;
-                dstOps = NULL;
+            //    dstOps = NULL;
             }
             break;
         case sun_java2d_pipe_BufferedOpCodes_SAVE_STATE:
@@ -751,7 +775,7 @@ Java_sun_java2d_metal_MTLRenderQueue_flushBuffer
         }
     }
 
-    //MTLTR_DisableGlyphModeState();
+    MTLTR_DisableGlyphModeState();
     fprintf(stderr, "MTLTR_DisableGlyphModeState\n");
     if (mtlc != NULL) {
         RESET_PREVIOUS_OP();
@@ -762,7 +786,6 @@ Java_sun_java2d_metal_MTLRenderQueue_flushBuffer
         }
         MTLSD_Flush(env);
     }
-MTLSD_Flush(env);
 }
 
 /**

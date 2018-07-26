@@ -100,7 +100,59 @@ MTLContext_InitAlphaChannel()
 MTLContext *
 MTLContext_SetSurfaces(JNIEnv *env, jlong pSrc, jlong pDst)
 {
-    return NULL;
+    BMTLSDOps *srcOps = (BMTLSDOps *)jlong_to_ptr(pSrc);
+    BMTLSDOps *dstOps = (BMTLSDOps *)jlong_to_ptr(pDst);
+    MTLContext *oglc = NULL;
+
+    J2dTraceLn(J2D_TRACE_INFO, "MTLContext_SetSurfaces");
+
+    if (srcOps == NULL || dstOps == NULL) {
+        J2dRlsTraceLn(J2D_TRACE_ERROR,
+                      "MTLContext_SetSurfaces: ops are null");
+        return NULL;
+    }
+
+    J2dTraceLn2(J2D_TRACE_VERBOSE, "  srctype=%d dsttype=%d",
+                srcOps->drawableType, dstOps->drawableType);
+
+    if (dstOps->drawableType == MTLSD_TEXTURE) {
+        J2dRlsTraceLn(J2D_TRACE_ERROR,
+                      "MTLContext_SetSurfaces: texture cannot be used as destination");
+        return NULL;
+    }
+
+    if (dstOps->drawableType == MTLSD_UNDEFINED) {
+        // initialize the surface as an OGLSD_WINDOW
+        if (!MTLSD_InitMTLWindow(env, dstOps)) {
+            J2dRlsTraceLn(J2D_TRACE_ERROR,
+                          "MTLContext_SetSurfaces: could not init OGL window");
+            return NULL;
+        }
+    }
+
+    // make the context current
+    oglc = MTLSD_MakeMTLContextCurrent(env, srcOps, dstOps);
+    if (oglc == NULL) {
+        J2dRlsTraceLn(J2D_TRACE_ERROR,
+                      "MTLContext_SetSurfaces: could not make context current");
+        return NULL;
+    }
+
+    // update the viewport
+    MTLContext_SetViewport(srcOps, dstOps);
+
+    // perform additional one-time initialization, if necessary
+    if (dstOps->needsInit) {
+        if (dstOps->isOpaque) {
+            // in this case we are treating the destination as opaque, but
+            // to do so, first we need to ensure that the alpha channel
+            // is filled with fully opaque values (see 6319663)
+            MTLContext_InitAlphaChannel();
+        }
+        dstOps->needsInit = JNI_FALSE;
+    }
+
+    return oglc;
 }
 
 /**

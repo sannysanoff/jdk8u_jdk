@@ -57,8 +57,9 @@ public class MTLVolatileSurfaceManager extends VolatileSurfaceManager {
          */
         int transparency = vImg.getTransparency();
         MTLGraphicsConfig gc = (MTLGraphicsConfig) vImg.getGraphicsConfig();
-        accelerationEnabled = gc.isCapPresent(CAPS_EXT_FBOBJECT)
-                && transparency != Transparency.BITMASK;
+        accelerationEnabled = true;
+                //gc.isCapPresent(CAPS_EXT_FBOBJECT)
+                //&& transparency != Transparency.BITMASK;
     }
 
     protected boolean isAccelerationEnabled() {

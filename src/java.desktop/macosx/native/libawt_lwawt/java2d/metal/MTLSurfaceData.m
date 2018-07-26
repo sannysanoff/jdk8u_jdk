@@ -138,12 +138,81 @@ MTLSD_SetScratchSurface(JNIEnv *env, jlong pConfigInfo)
  * associated with the destination surface.
  */
 MTLContext *
-MTLSD_MakeOGLContextCurrent(JNIEnv *env, MTLSDOps *srcOps, MTLSDOps *dstOps)
+MTLSD_MakeMTLContextCurrent(JNIEnv *env, BMTLSDOps *srcOps, BMTLSDOps *dstOps)
 {
-    J2dTraceLn(J2D_TRACE_INFO, "OGLSD_MakeOGLContextCurrent");
+    J2dTraceLn(J2D_TRACE_INFO, "MTLSD_MakeOGLContextCurrent");
 
+    MTLSDOps *dstCGLOps = (MTLSDOps *)dstOps->privOps;
 
-    return NULL;
+    J2dTraceLn4(J2D_TRACE_VERBOSE, "  src: %d %p dst: %d %p", srcOps->drawableType, srcOps, dstOps->drawableType, dstOps);
+
+    MTLContext *oglc = dstCGLOps->configInfo->context;
+    if (oglc == NULL) {
+        J2dRlsTraceLn(J2D_TRACE_ERROR, "MTLSD_MakeOGLContextCurrent: context is null");
+        return NULL;
+    }
+
+    MTLCtxInfo *ctxinfo = (MTLCtxInfo *)oglc->ctxInfo;
+
+    // it seems to be necessary to explicitly flush between context changes
+    MTLContext *currentContext = MTLRenderQueue_GetCurrentContext();
+    if (currentContext != NULL) {
+       // j2d_glFlush();
+    }
+
+    if (dstOps->drawableType == MTLSD_FBOBJECT) {
+        // first make sure we have a current context (if the context isn't
+        // already current to some drawable, we will make it current to
+        // its scratch surface)
+        if (oglc != currentContext) {
+            if (!MTLSD_MakeCurrentToScratch(env, oglc)) {
+                return NULL;
+            }
+        }
+
+        // now bind to the fbobject associated with the destination surface;
+        // this means that all rendering will go into the fbobject destination
+        // (note that we unbind the currently bound texture first; this is
+        // recommended procedure when binding an fbobject)
+        //j2d_glBindTexture(GL_TEXTURE_2D, 0);
+        //j2d_glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, dstOps->fbobjectID);
+
+        if (dstOps != NULL) {
+            MTLSDOps *dstCGLOps = (MTLSDOps *)dstOps->privOps;
+            MTLLayer *layer = (MTLLayer*)dstCGLOps->layer;
+            if (layer != NULL) {
+                [JNFRunLoop performOnMainThreadWaiting:NO withBlock:^(){
+//                AWT_ASSERT_APPKIT_THREAD;
+                    [layer beginFrame];
+                }];
+            }
+        } else {
+            fprintf(stderr, "MTLSD_Flush: dstOps=NULL\n");
+        }
+
+        return oglc;
+    }
+
+    JNF_COCOA_ENTER(env);
+
+            MTLSDOps *cglsdo = (MTLSDOps *)dstOps->privOps;
+            NSView *nsView = (NSView *)cglsdo->peerData;
+
+            if ([ctxinfo->context view] != nsView) {
+              //  [ctxinfo->context makeCurrentContext];
+              //  [ctxinfo->context setView: nsView];
+            }
+
+            if (MTLC_IS_CAP_PRESENT(oglc, CAPS_EXT_FBOBJECT)) {
+                // the GL_EXT_framebuffer_object extension is present, so we
+                // must bind to the default (windowing system provided)
+                // framebuffer
+                //j2d_glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
+            }
+
+    JNF_COCOA_EXIT(env);
+
+    return oglc;
 }
 
 /**
@@ -152,7 +221,7 @@ MTLSD_MakeOGLContextCurrent(JNIEnv *env, MTLSDOps *srcOps, MTLSDOps *dstOps)
  * successful; JNI_FALSE otherwise.
  */
 jboolean
-MTLSD_InitOGLWindow(JNIEnv *env, MTLSDOps *oglsdo)
+MTLSD_InitMTLWindow(JNIEnv *env, MTLSDOps *oglsdo)
 {
     J2dTraceLn(J2D_TRACE_INFO, "MTLSD_InitOGLWindow");
 
@@ -176,7 +245,7 @@ fprintf(stderr, "MTLSD_Flush\n");
         if (layer != NULL) {
             [JNFRunLoop performOnMainThreadWaiting:NO withBlock:^(){
                 AWT_ASSERT_APPKIT_THREAD;
-                [layer draw];
+                [layer endFrame];
             }];
         }
     } else {
